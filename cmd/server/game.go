@@ -63,8 +63,29 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
 
+	var username struct {
+		Username string `json:"username"`
+	}
+
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&username)
+	if err != nil {
+		log.Println(err)
+	}
+
+	player := NewPlayer(0, username.Username, Position{0, 0})
+	game.addPlayer(nil, player)
+
+	resp, err := json.MarshalIndent(player, "", "\t")
+	if err != nil {
+		log.Println(err)
+	}
+
 	log.Println("Logged")
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	w.Write(resp)
 }
 
 // serveWS is a HTTP Handler that the has the Game that allows connections
@@ -77,15 +98,6 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-
-	player := NewPlayer(0, "Player1", Position{0, 0})
-	game.addPlayer(conn, player)
-
-	var event = &Event{
-		Type:    "login",
-		Payload: json.MarshalIndent("{id: 0, username: Player1}"),
-	}
-	game.Players[0].Conn.WriteJSON("{id: 0, username: Player1}")
 
 	// handle incoming messages
 	for {
@@ -120,7 +132,7 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 func (g *Game) sendGameDataToClient(conn *websocket.Conn) {
 	data, _ := json.Marshal(g.Players)
 
-	err := conn.WriteJSON(Event{Type: EventNewMessage, Payload: data})
+	err := conn.WriteJSON(Event{Type: EventSendMessage, Payload: data})
 	log.Println("send data")
 	if err != nil {
 		log.Println(err)
@@ -138,10 +150,12 @@ func (g *Game) broadcast(event Event) {
 }
 
 func (g *Game) handleMessages(event Event, game *Game) {
+
 	// handle any msg type
 	switch event.Type {
 	case "login":
-		game.Players[0].Player.Name = "Player1"
+		log.Println(string(event.Type))
+		// game.Players[0].Player.Name = "Player1"
 	case "move":
 		game.broadcast(event)
 	case "action":

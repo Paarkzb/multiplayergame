@@ -1,24 +1,69 @@
+class Player {
+    constuctor(id, name, pos) {
+        this.id = id;
+        this.name = name;
+        this.pos = pos;
+    }
+}
+
+let canvas = document.getElementById("game-canvas");
+let ctx = canvas.getContext("2d");
+
+class Game {
+    player;
+    canvas;
+    ctx;
+
+    constructor(player, canvas) {
+        this.player = player;
+        this.canvas = canvas;
+        this.ctx = this.canvas.getContext("2d");
+    }
+
+    start() {}
+
+    update() {}
+}
+
+let game;
+
 /**
  * login will send a login request to the server and then connect websocket
  */
 function login() {
     let username = document.getElementById("username").value;
 
+    let data = {
+        username: username,
+    };
+
+    console.log(JSON.stringify(data));
+
     const requestParams = {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify(username),
+        body: JSON.stringify(data),
     };
     // Send the request
     fetch("http://localhost:8080/login", requestParams)
         .then((response) => {
-            console.log(response);
             if (!response.ok) {
                 console.log("ERROR TO CONNECT");
             }
-            connectWebsocket(username);
+
+            return response.json();
+        })
+        .then(function (data) {
+            console.log(data.id, data.name, data.position);
+
+            // let player = new Player(data.id, data.name, data.position);
+            let pr = new Player(0, "asd", { x: 0, y: 0 });
+            console.log(pr.name, "login");
+
+            game = new Game(pr, canvas);
+            connectWebsocket();
         })
         .catch((e) => {
             alert(e);
@@ -30,14 +75,15 @@ function login() {
 /**
  * connectWebsocket will connect to websocket and add listeners
  */
-function connectWebsocket(username) {
+function connectWebsocket() {
     if (window["WebSocket"]) {
         console.log("supports websockets");
         conn = new WebSocket("ws://localhost:8080/ws");
 
         // Onopen
         conn.onopen = function (evt) {
-            sendEvent("login", username);
+            console.log(game.player);
+            sendMessage("login");
             document.getElementById("connection-header").innerHTML =
                 "Connected to Websocket: true";
         };
@@ -63,12 +109,19 @@ function connectWebsocket(username) {
     }
 }
 
+function startGame() {
+    ctx.beginPath();
+    ctx.fillStyle = "rgb(200 0 0)";
+    ctx.fillRect(200, 200, 50, 50);
+    ctx.closePath();
+}
+
 /**
  * Event is used to wrap all messages Send and Receive
  * on the Websocket
  * The type is used as a RPC
  **/
-class Event {
+class EventMsg {
     // Each event needs a type
     // The playload is not required
     constructor(type, payload) {
@@ -84,17 +137,6 @@ class SendMessageEvent {
     constructor(message, from) {
         this.message = message;
         this.from = from;
-    }
-}
-
-/**
- * NewMessageEvent is messages comming from clients
- */
-class NewMessageEvent {
-    constructor(message, from, sent) {
-        this.message = message;
-        this.from = from;
-        this.sent = sent;
     }
 }
 
@@ -126,18 +168,22 @@ function routeEvent(event) {
  * */
 function sendEvent(eventName, payload) {
     // Create a event Object with a event named send_message
-    const event = new Event(eventName, payload);
+    const event = new EventMsg(eventName, payload);
     // Format as JSON and send
     conn.send(JSON.stringify(event));
 }
+
 /**
  * sendMessage will send a new message onto the Websocket
  * */
-function sendMessage() {
-    let outGoingEvent = new SendMessageEvent(
-        "Here's some text that the server is urgently awaiting!",
-        "paark"
-    );
-    sendEvent("send_message", outGoingEvent);
+function sendMessage(eventName) {
+    let msg;
+    switch (eventName) {
+        case "login":
+            msg = "Connecting to game";
+    }
+    let outGoingEvent = new SendMessageEvent(msg, game.player.id);
+    console.log(outGoingEvent);
+    sendEvent(eventName, outGoingEvent);
     return false;
 }

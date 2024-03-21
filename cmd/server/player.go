@@ -3,15 +3,15 @@ package main
 import "github.com/gorilla/websocket"
 
 type Position struct {
-	x float32
-	y float32
+	x float32 `json:"x"`
+	y float32 `json:"y"`
 }
 
 // Player is a websocket player, basically a frontend visitor
 type Player struct {
-	Id   int
-	Name string
-	Pos  Position
+	Id   int      `json:"id"`
+	Name string   `json:"name"`
+	Pos  Position `json:"position"`
 }
 
 func NewPlayer(id int32, name string, pos Position) *Player {
