@@ -1,5 +1,5 @@
 class Player {
-    constuctor(id, name, pos) {
+    constructor(id, name, pos) {
         this.id = id;
         this.name = name;
         this.pos = pos;
@@ -58,11 +58,9 @@ function login() {
         .then(function (data) {
             console.log(data.id, data.name, data.position);
 
-            // let player = new Player(data.id, data.name, data.position);
-            let pr = new Player(0, "asd", { x: 0, y: 0 });
-            console.log(pr.name, "login");
+            let player = new Player(data.id, data.name, data.position);
 
-            game = new Game(pr, canvas);
+            game = new Game(player, canvas);
             connectWebsocket();
         })
         .catch((e) => {
@@ -82,7 +80,7 @@ function connectWebsocket() {
 
         // Onopen
         conn.onopen = function (evt) {
-            console.log(game.player);
+            console.log(game.player, "onopen");
             sendMessage("login");
             document.getElementById("connection-header").innerHTML =
                 "Connected to Websocket: true";
@@ -180,7 +178,7 @@ function sendMessage(eventName) {
     let msg;
     switch (eventName) {
         case "login":
-            msg = "Connecting to game";
+            msg = game.player;
     }
     let outGoingEvent = new SendMessageEvent(msg, game.player.id);
     console.log(outGoingEvent);

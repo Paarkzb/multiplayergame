@@ -3,22 +3,22 @@ package main
 import "github.com/gorilla/websocket"
 
 type Position struct {
-	x float32 `json:"x"`
-	y float32 `json:"y"`
+	X float32 `json:"x"`
+	Y float32 `json:"y"`
 }
 
 // Player is a websocket player, basically a frontend visitor
 type Player struct {
-	Id   int      `json:"id"`
+	Id   int32    `json:"id"`
 	Name string   `json:"name"`
 	Pos  Position `json:"position"`
 }
 
 func NewPlayer(id int32, name string, pos Position) *Player {
 	return &Player{
-		Id:   0,
+		Id:   id,
 		Name: name,
-		Pos:  Position{0, 0},
+		Pos:  pos,
 	}
 }
 
@@ -34,4 +34,4 @@ func NewPlayerConn(ws *websocket.Conn, player *Player) *PlayerConn {
 }
 
 // Players is a map used to help manage a map of players
-type PlayerList map[int]*PlayerConn
+type PlayerList map[int32]*PlayerConn

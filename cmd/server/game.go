@@ -73,7 +73,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 	}
 
-	player := NewPlayer(0, username.Username, Position{0, 0})
+	player := NewPlayer(0, username.Username, Position{X: 0, Y: 0})
 	game.addPlayer(nil, player)
 
 	resp, err := json.MarshalIndent(player, "", "\t")
@@ -152,10 +152,19 @@ func (g *Game) broadcast(event Event) {
 func (g *Game) handleMessages(event Event, game *Game) {
 
 	// handle any msg type
+	var payload struct {
+		Message Player
+		From    int32
+	}
+	err := json.Unmarshal(event.Payload, &payload)
+	if err != nil {
+		log.Println(err)
+	}
+
 	switch event.Type {
 	case "login":
-		log.Println(string(event.Type))
-		// game.Players[0].Player.Name = "Player1"
+		log.Println(payload)
+		game.Players[payload.From].Player.Name = payload.Message.Name
 	case "move":
 		game.broadcast(event)
 	case "action":
