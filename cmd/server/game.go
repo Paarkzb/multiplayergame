@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -40,9 +39,9 @@ var ErrEventNotSupported = errors.New("this event type is not supported")
 type Game struct {
 	Players PlayerList
 
-	// Using a syncMutex here to be able to lock state before editing players
-	// Could also use the Channels to block
-	sync.RWMutex
+	// // Using a syncMutex here to be able to lock state before editing players
+	// // Could also use the Channels to block
+	// sync.RWMutex
 	// handlers are functions that are used to handle Events
 	handlers map[string]EventHandler
 }
@@ -94,7 +93,7 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	// Begin by upgrading the HTTP request
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 		return
 	}
 	defer conn.Close()
@@ -114,6 +113,17 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 			continue
 		}
+
+		var payload struct {
+			Message json.RawMessage
+			From    int32
+		}
+		err = json.Unmarshal(event.Payload, &payload)
+		if err != nil {
+			log.Println(err)
+		}
+
+		game.Players[payload.From].Conn = conn
 
 		game.handleMessages(event, game)
 
@@ -144,16 +154,16 @@ func (g *Game) broadcast(event Event) {
 	for _, player := range g.Players {
 		err := player.Conn.WriteJSON(event)
 		if err != nil {
-			log.Println(err)
+			log.Println(err, "broadcast")
 		}
 	}
 }
 
 func (g *Game) handleMessages(event Event, game *Game) {
-
+	log.Println("Handling message")
 	// handle any msg type
 	var payload struct {
-		Message Player
+		Message json.RawMessage
 		From    int32
 	}
 	err := json.Unmarshal(event.Payload, &payload)
@@ -161,22 +171,79 @@ func (g *Game) handleMessages(event Event, game *Game) {
 		log.Println(err)
 	}
 
+	player := game.Players[payload.From].Player
+
+	var respEvent Event
+	respEvent.Type = event.Type
+
 	switch event.Type {
 	case "login":
-		log.Println(payload)
-		game.Players[payload.From].Player.Name = payload.Message.Name
+		var playerPayload Player
+		err := json.Unmarshal(payload.Message, &playerPayload)
+		if err != nil {
+			log.Println(err)
+		}
+		player.Name = playerPayload.Name
+		break
+
 	case "move":
-		game.broadcast(event)
+		var direction struct {
+			Direction string `json:"direction"`
+		}
+		log.Println(string(payload.Message))
+		err := json.Unmarshal(payload.Message, &direction)
+		if err != nil {
+			log.Println(err)
+		}
+
+		switch direction.Direction {
+		case "left":
+			player.Pos.X -= 10
+		case "right":
+			player.Pos.X += 10
+		case "up":
+			player.Pos.Y -= 10
+		case "down":
+			player.Pos.Y += 10
+		}
+		break
+
 	case "action":
 		log.Println("ACTION")
+		break
+	case "default":
+		break
+	}
+
+	var state struct {
+		Player       Player   `json:"player"`
+		OtherPlayers []Player `json:otherPlayers`
+	}
+
+	state.Player = *player
+	for _, p := range game.Players {
+		if p.Player.Id != player.Id {
+			state.OtherPlayers = append(state.OtherPlayers, *p.Player)
+		}
+	}
+
+	out, err := json.Marshal(state)
+	if err != nil {
+		log.Println(err)
+	}
+	event.Payload = out
+
+	err = game.Players[payload.From].Conn.WriteJSON(event)
+	if err != nil {
+		log.Println(err)
 	}
 }
 
 // addPlayer will add new players to Players
 func (g *Game) addPlayer(conn *websocket.Conn, player *Player) {
-	// Lock so we can manipulate
-	g.RWMutex.Lock()
-	defer g.RWMutex.Unlock()
+	// // Lock so we can manipulate
+	// g.RWMutex.Lock()
+	// defer g.RWMutex.Unlock()
 
 	// Add Player
 	// TODO: Change to normal unique id

@@ -4,28 +4,53 @@ class Player {
         this.name = name;
         this.pos = pos;
     }
+
+    draw() {
+        ctx.beginPath();
+        ctx.fillStyle = "red";
+        ctx.fillRect(200, 200, 50, 50);
+        ctx.closePath();
+    }
 }
 
 let canvas = document.getElementById("game-canvas");
 let ctx = canvas.getContext("2d");
 
 class Game {
-    player;
-    canvas;
-    ctx;
-
     constructor(player, canvas) {
         this.player = player;
         this.canvas = canvas;
         this.ctx = this.canvas.getContext("2d");
     }
 
-    start() {}
+    start() {
+        let form = document.getElementById("form");
+        form.remove();
+        this.player.draw();
+    }
 
-    update() {}
+    update() {
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.player.draw();
+    }
 }
 
 let game;
+
+document.addEventListener("keydown", function (event) {
+    if (event.code == "KeyA") {
+        sendMessage("move", "left");
+    }
+    if (event.code == "KeyD") {
+        sendMessage("move", "right");
+    }
+    if (event.code == "KeyW") {
+        sendMessage("move", "up");
+    }
+    if (event.code == "KeyS") {
+        sendMessage("move", "down");
+    }
+});
 
 /**
  * login will send a login request to the server and then connect websocket
@@ -61,6 +86,7 @@ function login() {
             let player = new Player(data.id, data.name, data.position);
 
             game = new Game(player, canvas);
+
             connectWebsocket();
         })
         .catch((e) => {
@@ -81,37 +107,30 @@ function connectWebsocket() {
         // Onopen
         conn.onopen = function (evt) {
             console.log(game.player, "onopen");
-            sendMessage("login");
+            sendMessage("login", game.player);
             document.getElementById("connection-header").innerHTML =
                 "Connected to Websocket: true";
+            game.start();
         };
 
-        conn.onclose = function (evt) {
-            // Set disconnected
-            document.getElementById("connection-header").innerHTML =
-                "Connected to Websocket: false";
-        };
+        conn.onclose = function (evt) {};
 
         conn.onmessage = function (event) {
             console.log(event);
 
             // parse websocket message as JSON
             const eventData = JSON.parse(event.data);
+            console.log(event);
             // Assign JSON data to new Event Object
             const evt = Object.assign(new Event(), eventData);
 
             routeEvent(evt);
+
+            game.update();
         };
     } else {
         alert("Not supporting websockets");
     }
-}
-
-function startGame() {
-    ctx.beginPath();
-    ctx.fillStyle = "rgb(200 0 0)";
-    ctx.fillRect(200, 200, 50, 50);
-    ctx.closePath();
 }
 
 /**
@@ -148,7 +167,7 @@ function routeEvent(event) {
         alert("no 'type' field in event");
     }
     switch (event.type) {
-        case "new_message":
+        case "move":
             console.log("new message");
             console.log(event.payload);
             break;
@@ -174,11 +193,15 @@ function sendEvent(eventName, payload) {
 /**
  * sendMessage will send a new message onto the Websocket
  * */
-function sendMessage(eventName) {
+function sendMessage(eventName, payload) {
     let msg;
     switch (eventName) {
         case "login":
-            msg = game.player;
+            msg = payload;
+            break;
+        case "move":
+            msg = { direction: payload };
+            break;
     }
     let outGoingEvent = new SendMessageEvent(msg, game.player.id);
     console.log(outGoingEvent);
