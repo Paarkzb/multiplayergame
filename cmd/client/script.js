@@ -17,8 +17,7 @@ let canvas = document.getElementById("game-canvas");
 let ctx = canvas.getContext("2d");
 
 class Game {
-    constructor(player, canvas) {
-        this.player = player;
+    constructor(canvas) {
         this.canvas = canvas;
         this.ctx = this.canvas.getContext("2d");
     }
@@ -31,37 +30,36 @@ class Game {
     update(evt) {
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.player.pos = evt.payload.player.position;
+        const {player, otherPlayers} = this.getCurrentState(evt);
 
-        console.log("Update", this.player);
-
-        let otherPlayers = evt.payload.OtherPlayers;
+        console.log("Update", player);
         console.log("Others", otherPlayers);
-        otherPlayers.forEach((otherPlayer) => {
-            let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position)
-            oPlayer.draw();
-        })
 
-        this.player.draw();
+        player.draw();
+        otherPlayers.forEach((otherPlayer) => {otherPlayer.draw();
+        })
+    }
+
+    getCurrentState(evt) {
+        console.log(evt);
+        let player = new Player(evt.player.id, evt.player.name, evt.player.position);
+        let otherPlayers = [];
+        evt.OtherPlayers?.forEach((otherPlayer) => {
+            let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position);
+            otherPlayers.push(oPlayer);
+        })
+        console.log("Current State", otherPlayers);
+        return {
+            player: player,
+            otherPlayers: otherPlayers,
+        }
+
     }
 }
 
 let game;
 
-document.addEventListener("keydown", function (event) {
-    if (event.code == "KeyA") {
-        sendMessage("move", "left");
-    }
-    if (event.code == "KeyD") {
-        sendMessage("move", "right");
-    }
-    if (event.code == "KeyW") {
-        sendMessage("move", "up");
-    }
-    if (event.code == "KeyS") {
-        sendMessage("move", "down");
-    }
-});
+
 
 /**
  * login will send a login request to the server and then connect websocket
@@ -83,12 +81,29 @@ function connectWebsocket() {
         // Onopen
         conn.onopen = function (evt) {
             let username = document.getElementById("username").value;
-            sendMessage("login", username);
+            sendEvent("login", username);
             
             // console.log(game.player, "onopen");
             document.getElementById("connection-header").innerHTML =
                 "Connected to Websocket: true";
+
+            game = new Game(canvas);
             game.start();
+
+            document.addEventListener("keydown", function (event) {
+                if (event.code == "KeyA") {
+                    sendEvent("move", "left");
+                }
+                if (event.code == "KeyD") {
+                    sendEvent("move", "right");
+                }
+                if (event.code == "KeyW") {
+                    sendEvent("move", "up");
+                }
+                if (event.code == "KeyS") {
+                    sendEvent("move", "down");
+                }
+            });
         };
 
         conn.onmessage = function (event) {
@@ -97,15 +112,31 @@ function connectWebsocket() {
             // parse websocket message as JSON
             const eventData = JSON.parse(event.data);
             console.log(eventData);
-            // Assign JSON data to new Event Object
-            const evt = Object.assign(new EventMsg(), eventData);
+            routeEvent(eventData);
 
-            routeEvent(evt);
-
-            // game.update(evt);
         };
     } else {
         alert("Not supporting websockets");
+    }
+}
+
+/**
+ * routeEvent is a proxy function that routes
+ * events into their correct Handler
+ * based on the type field
+ * */
+function routeEvent(event) {
+    if (event.type === undefined) {
+        alert("no 'type' field in event");
+    }
+    console.log("EVENT", event.type);
+    switch (event.type) {
+        case "update":
+            game.update(event);
+            break;
+        default:
+            alert("unsupported message type");
+            break;
     }
 }
 
@@ -124,66 +155,22 @@ class EventMsg {
 }
 
 /**
- * SendMessageEvent is used to send messages to other players
- */
-class SendMessageEvent {
-    constructor(message, from) {
-        this.message = message;
-        this.from = from;
-    }
-}
-
-/**
- * routeEvent is a proxy function that routes
- * events into their correct Handler
- * based on the type field
- * */
-function routeEvent(event) {
-    if (event.type === undefined) {
-        alert("no 'type' field in event");
-    }
-    switch (event.type) {
-        case "login":
-            console.log("new message");
-            console.log(event.payload);
-        case "move":
-            console.log("new message");
-            console.log(event.payload);
-            break;
-
-        default:
-            alert("unsupported message type");
-            break;
-    }
-}
-
-/**
  * sendEvent
  * eventName - the event name to send on
  * payload - the data payload
  * */
 function sendEvent(eventName, payload) {
-    // Create a event Object with a event named send_message
-    const event = new EventMsg(eventName, payload);
-    // Format as JSON and send
-    conn.send(JSON.stringify(event));
-}
-
-/**
- * sendMessage will send a new message onto the Websocket
- * */
-function sendMessage(eventName, payload) {
     let msg;
     switch (eventName) {
         case "login":
             msg = payload;
             break;
         case "move":
-            msg = { direction: payload };
+            msg = payload;
             break;
     }
-    let outGoingEvent = new SendMessageEvent(msg, game.player.id);
-    console.log(outGoingEvent);
-    sendEvent(eventName, outGoingEvent);
-    return false;
+
+    // Create a event Object with a event named send_message
+    const event = new EventMsg(eventName, msg);
+    conn.send(JSON.stringify(event));
 }
