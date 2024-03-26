@@ -26,7 +26,6 @@ class Game {
     start() {
         let form = document.getElementById("form");
         form.remove();
-        this.player.draw();
     }
 
     update(evt) {
@@ -68,42 +67,7 @@ document.addEventListener("keydown", function (event) {
  * login will send a login request to the server and then connect websocket
  */
 function login() {
-    let username = document.getElementById("username").value;
-
-    let data = {
-        username: username,
-    };
-
-    console.log(JSON.stringify(data));
-
-    const requestParams = {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-    };
-    // Send the request
-    fetch("http://localhost:8080/login", requestParams)
-        .then((response) => {
-            if (!response.ok) {
-                console.log("ERROR TO CONNECT");
-            }
-
-            return response.json();
-        })
-        .then(function (data) {
-            console.log(data.id, data.name, data.position);
-
-            let player = new Player(data.id, data.name, data.position);
-
-            game = new Game(player, canvas);
-
-            connectWebsocket();
-        })
-        .catch((e) => {
-            alert(e);
-        });
+    connectWebsocket();
 
     return false;
 }
@@ -118,8 +82,10 @@ function connectWebsocket() {
 
         // Onopen
         conn.onopen = function (evt) {
-            console.log(game.player, "onopen");
-            sendMessage("login", game.player);
+            let username = document.getElementById("username").value;
+            sendMessage("login", username);
+            
+            // console.log(game.player, "onopen");
             document.getElementById("connection-header").innerHTML =
                 "Connected to Websocket: true";
             game.start();
@@ -134,9 +100,9 @@ function connectWebsocket() {
             // Assign JSON data to new Event Object
             const evt = Object.assign(new EventMsg(), eventData);
 
-            // routeEvent(evt);
+            routeEvent(evt);
 
-            game.update(evt);
+            // game.update(evt);
         };
     } else {
         alert("Not supporting websockets");
@@ -172,21 +138,24 @@ class SendMessageEvent {
  * events into their correct Handler
  * based on the type field
  * */
-// function routeEvent(event) {
-//     if (event.type === undefined) {
-//         alert("no 'type' field in event");
-//     }
-//     switch (event.type) {
-//         case "move":
-//             console.log("new message");
-//             console.log(event.payload);
-//             break;
+function routeEvent(event) {
+    if (event.type === undefined) {
+        alert("no 'type' field in event");
+    }
+    switch (event.type) {
+        case "login":
+            console.log("new message");
+            console.log(event.payload);
+        case "move":
+            console.log("new message");
+            console.log(event.payload);
+            break;
 
-//         default:
-//             alert("unsupported message type");
-//             break;
-//     }
-// }
+        default:
+            alert("unsupported message type");
+            break;
+    }
+}
 
 /**
  * sendEvent

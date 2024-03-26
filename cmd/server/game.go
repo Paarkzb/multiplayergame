@@ -100,7 +100,9 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	playerId := id - 1
+	player := NewPlayer(id, "", Position{X: 0, Y: 0})
+	game.addPlayer(conn, player)
+	id++
 
 	// handle incoming messages
 	for {
@@ -129,10 +131,10 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 
 		game.Players[payload.From].Conn = conn
 
-		game.handleMessages(event, game)
+		game.handleMessages(event, conn)
 
 	}
-	game.deletePlayer(playerId)
+	game.deletePlayer(player.Id)
 
 	// Send game data to clients after connect
 	// go game.sendGameDataToClient(conn)
@@ -164,7 +166,7 @@ func (g *Game) broadcast(event Event) {
 	}
 }
 
-func (g *Game) handleMessages(event Event, game *Game) {
+func (g *Game) handleMessages(event Event, conn *websocket.Conn) {
 	// handle any msg type
 	var payload struct {
 		Message json.RawMessage
@@ -176,7 +178,7 @@ func (g *Game) handleMessages(event Event, game *Game) {
 	}
 
 	log.Println("Handling message from ", payload.From)
-	player := game.Players[payload.From].Player
+	player := g.Players[payload.From].Player
 
 	var respEvent Event
 	respEvent.Type = event.Type
@@ -216,11 +218,6 @@ func (g *Game) handleMessages(event Event, game *Game) {
 	default:
 	}
 
-	var state struct {
-		Player       Player   `json:"player"`
-		OtherPlayers []Player `json:otherPlayers`
-	}
-
 	state.Player = *player
 	for _, p := range game.Players {
 		if p.Player.Id != player.Id {
@@ -234,7 +231,7 @@ func (g *Game) handleMessages(event Event, game *Game) {
 	}
 	event.Payload = out
 
-	err = game.Players[payload.From].Conn.WriteJSON(event)
+	err = conn.WriteJSON(event)
 	if err != nil {
 		log.Println(err)
 	}
