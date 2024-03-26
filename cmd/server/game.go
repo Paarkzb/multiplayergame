@@ -103,7 +103,7 @@ func (g *Game) writeState(player *Player) {
 	var state struct {
 		Type         string   `json:"type"`
 		Player       Player   `json:"player"`
-		OtherPlayers []Player `json:otherPlayers`
+		OtherPlayers []Player `json:"otherPlayers"`
 	}
 	state.Type = "update"
 	state.Player = *player

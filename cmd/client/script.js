@@ -44,7 +44,7 @@ class Game {
         console.log(evt);
         let player = new Player(evt.player.id, evt.player.name, evt.player.position);
         let otherPlayers = [];
-        evt.OtherPlayers?.forEach((otherPlayer) => {
+        evt.otherPlayers?.forEach((otherPlayer) => {
             let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position);
             otherPlayers.push(oPlayer);
         })
