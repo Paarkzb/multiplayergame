@@ -11,6 +11,7 @@ import (
 
 // Create a Game instance used to handle WebSocket Connections
 var game = NewGame()
+var id int32 = 0
 
 /*
 *
@@ -72,8 +73,9 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 	}
 
-	player := NewPlayer(0, username.Username, Position{X: 0, Y: 0})
+	player := NewPlayer(id, username.Username, Position{X: 0, Y: 0})
 	game.addPlayer(nil, player)
+	id++
 
 	resp, err := json.MarshalIndent(player, "", "\t")
 	if err != nil {
@@ -97,6 +99,8 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
+
+	playerId := id - 1
 
 	// handle incoming messages
 	for {
@@ -128,6 +132,7 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 		game.handleMessages(event, game)
 
 	}
+	game.deletePlayer(playerId)
 
 	// Send game data to clients after connect
 	// go game.sendGameDataToClient(conn)
@@ -160,7 +165,6 @@ func (g *Game) broadcast(event Event) {
 }
 
 func (g *Game) handleMessages(event Event, game *Game) {
-	log.Println("Handling message")
 	// handle any msg type
 	var payload struct {
 		Message json.RawMessage
@@ -171,6 +175,7 @@ func (g *Game) handleMessages(event Event, game *Game) {
 		log.Println(err)
 	}
 
+	log.Println("Handling message from ", payload.From)
 	player := game.Players[payload.From].Player
 
 	var respEvent Event
@@ -184,7 +189,6 @@ func (g *Game) handleMessages(event Event, game *Game) {
 			log.Println(err)
 		}
 		player.Name = playerPayload.Name
-		break
 
 	case "move":
 		var direction struct {
@@ -206,13 +210,10 @@ func (g *Game) handleMessages(event Event, game *Game) {
 		case "down":
 			player.Pos.Y += 10
 		}
-		break
 
-	case "action":
+	case "close":
 		log.Println("ACTION")
-		break
-	case "default":
-		break
+	default:
 	}
 
 	var state struct {
@@ -226,7 +227,7 @@ func (g *Game) handleMessages(event Event, game *Game) {
 			state.OtherPlayers = append(state.OtherPlayers, *p.Player)
 		}
 	}
-
+	log.Println("players ", len(game.Players))
 	out, err := json.Marshal(state)
 	if err != nil {
 		log.Println(err)
@@ -249,6 +250,11 @@ func (g *Game) addPlayer(conn *websocket.Conn, player *Player) {
 	// TODO: Change to normal unique id
 	playerConn := NewPlayerConn(conn, player)
 	g.Players[player.Id] = playerConn
+}
+
+func (g *Game) deletePlayer(playerId int32) {
+	log.Println("Deleting player", playerId)
+	delete(g.Players, playerId)
 }
 
 // // removePlayer will remove the player and clean up

@@ -7,7 +7,7 @@ type Position struct {
 	Y float32 `json:"y"`
 }
 
-// Player is a websocket player, basically a frontend visitor
+// Player is a websocket player
 type Player struct {
 	Id   int32    `json:"id"`
 	Name string   `json:"name"`

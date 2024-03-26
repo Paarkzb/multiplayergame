@@ -8,7 +8,7 @@ class Player {
     draw() {
         ctx.beginPath();
         ctx.fillStyle = "red";
-        ctx.fillRect(200, 200, 50, 50);
+        ctx.fillRect(this.pos.x, this.pos.y, 50, 50);
         ctx.closePath();
     }
 }
@@ -29,8 +29,20 @@ class Game {
         this.player.draw();
     }
 
-    update() {
+    update(evt) {
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.player.pos = evt.payload.player.position;
+
+        console.log("Update", this.player);
+
+        let otherPlayers = evt.payload.OtherPlayers;
+        console.log("Others", otherPlayers);
+        otherPlayers.forEach((otherPlayer) => {
+            let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position)
+            oPlayer.draw();
+        })
+
         this.player.draw();
     }
 }
@@ -113,20 +125,18 @@ function connectWebsocket() {
             game.start();
         };
 
-        conn.onclose = function (evt) {};
-
         conn.onmessage = function (event) {
             console.log(event);
 
             // parse websocket message as JSON
             const eventData = JSON.parse(event.data);
-            console.log(event);
+            console.log(eventData);
             // Assign JSON data to new Event Object
-            const evt = Object.assign(new Event(), eventData);
+            const evt = Object.assign(new EventMsg(), eventData);
 
-            routeEvent(evt);
+            // routeEvent(evt);
 
-            game.update();
+            game.update(evt);
         };
     } else {
         alert("Not supporting websockets");
@@ -162,21 +172,21 @@ class SendMessageEvent {
  * events into their correct Handler
  * based on the type field
  * */
-function routeEvent(event) {
-    if (event.type === undefined) {
-        alert("no 'type' field in event");
-    }
-    switch (event.type) {
-        case "move":
-            console.log("new message");
-            console.log(event.payload);
-            break;
+// function routeEvent(event) {
+//     if (event.type === undefined) {
+//         alert("no 'type' field in event");
+//     }
+//     switch (event.type) {
+//         case "move":
+//             console.log("new message");
+//             console.log(event.payload);
+//             break;
 
-        default:
-            alert("unsupported message type");
-            break;
-    }
-}
+//         default:
+//             alert("unsupported message type");
+//             break;
+//     }
+// }
 
 /**
  * sendEvent
