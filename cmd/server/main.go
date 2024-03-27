@@ -17,7 +17,6 @@ func main() {
 // setupAPI will start all Routes and their Handlers
 func setupAPI() {
 	r := mux.NewRouter()
-	r.HandleFunc("/login", loginHandler)
 	r.HandleFunc("/ws", serveWS)
 	http.Handle("/", r)
 

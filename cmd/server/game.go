@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 
@@ -34,8 +33,6 @@ var websocketUpgrader = websocket.Upgrader{
 	},
 }
 
-var ErrEventNotSupported = errors.New("this event type is not supported")
-
 // Game is used to hold references to all Players Registered, and Broadcasting etc
 type Game struct {
 	Players PlayerList
@@ -43,50 +40,16 @@ type Game struct {
 	// // Using a syncMutex here to be able to lock state before editing players
 	// // Could also use the Channels to block
 	// sync.RWMutex
-	// handlers are functions that are used to handle Events
-	handlers map[string]EventHandler
+
 }
 
 // NewGame is used to initalize all the values inside the Game
 func NewGame() *Game {
 	g := &Game{
-		Players:  make(PlayerList),
-		handlers: make(map[string]EventHandler),
+		Players: make(PlayerList),
 	}
-	g.setupEventHandlers()
+
 	return g
-}
-
-// loginHandler is used to verify an user authentication
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
-
-	var username struct {
-		Username string `json:"username"`
-	}
-
-	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(&username)
-	if err != nil {
-		log.Println(err)
-	}
-
-	player := NewPlayer(id, username.Username, Position{X: 0, Y: 0})
-	game.addPlayer(nil, player)
-	id++
-
-	resp, err := json.MarshalIndent(player, "", "\t")
-	if err != nil {
-		log.Println(err)
-	}
-
-	log.Println("Logged")
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(resp)
 }
 
 // serveWS is a HTTP Handler that the has the Game that allows connections
@@ -100,7 +63,9 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	playerId := id - 1
+	player := NewPlayer(conn, id, "", Position{X: 0, Y: 0})
+	game.addPlayer(player)
+	id++
 
 	// handle incoming messages
 	for {
@@ -118,89 +83,51 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		var payload struct {
-			Message json.RawMessage
-			From    int32
-		}
-		err = json.Unmarshal(event.Payload, &payload)
-		if err != nil {
-			log.Println(err)
-		}
-
-		game.Players[payload.From].Conn = conn
-
-		game.handleMessages(event, game)
+		game.handleMessages(event, player)
 
 	}
-	game.deletePlayer(playerId)
-
-	// Send game data to clients after connect
-	// go game.sendGameDataToClient(conn)
-
-	// // Start the real write processes
-	// go player.readMessages()
-
-	// go player.writeMessage()
-}
-
-// Send game data to clients
-func (g *Game) sendGameDataToClient(conn *websocket.Conn) {
-	data, _ := json.Marshal(g.Players)
-
-	err := conn.WriteJSON(Event{Type: EventSendMessage, Payload: data})
-	log.Println("send data")
-	if err != nil {
-		log.Println(err)
-	}
+	game.deletePlayer(player.Id)
 }
 
 // Response to the client after getting message
-func (g *Game) broadcast(event Event) {
-	for _, player := range g.Players {
-		err := player.Conn.WriteJSON(event)
-		if err != nil {
-			log.Println(err, "broadcast")
+// func (g *Game) broadcast(event Event) {
+// 	for _, player := range g.Players {
+// 		err := player.Conn.WriteJSON(event)
+// 		if err != nil {
+// 			log.Println(err, "broadcast")
+// 		}
+// 	}
+// }
+
+func (g *Game) writeState(player *Player) {
+	var state struct {
+		Type         string   `json:"type"`
+		Player       Player   `json:"player"`
+		OtherPlayers []Player `json:"otherPlayers"`
+	}
+	state.Type = "update"
+	state.Player = *player
+	for _, p := range game.Players {
+		if p.Id != player.Id {
+			state.OtherPlayers = append(state.OtherPlayers, *p)
 		}
 	}
-}
+	log.Println("players ", len(game.Players))
 
-func (g *Game) handleMessages(event Event, game *Game) {
-	// handle any msg type
-	var payload struct {
-		Message json.RawMessage
-		From    int32
-	}
-	err := json.Unmarshal(event.Payload, &payload)
+	err := player.Conn.WriteJSON(state)
 	if err != nil {
 		log.Println(err)
 	}
+}
 
-	log.Println("Handling message from ", payload.From)
-	player := game.Players[payload.From].Player
-
-	var respEvent Event
-	respEvent.Type = event.Type
-
+func (g *Game) handleMessages(event Event, player *Player) {
 	switch event.Type {
 	case "login":
-		var playerPayload Player
-		err := json.Unmarshal(payload.Message, &playerPayload)
-		if err != nil {
-			log.Println(err)
-		}
-		player.Name = playerPayload.Name
+		player.Name = event.Payload
 
 	case "move":
-		var direction struct {
-			Direction string `json:"direction"`
-		}
-		log.Println(string(payload.Message))
-		err := json.Unmarshal(payload.Message, &direction)
-		if err != nil {
-			log.Println(err)
-		}
-
-		switch direction.Direction {
+		direction := event.Payload
+		switch direction {
 		case "left":
 			player.Pos.X -= 10
 		case "right":
@@ -210,83 +137,23 @@ func (g *Game) handleMessages(event Event, game *Game) {
 		case "down":
 			player.Pos.Y += 10
 		}
-
-	case "close":
-		log.Println("ACTION")
-	default:
 	}
 
-	var state struct {
-		Player       Player   `json:"player"`
-		OtherPlayers []Player `json:otherPlayers`
-	}
-
-	state.Player = *player
-	for _, p := range game.Players {
-		if p.Player.Id != player.Id {
-			state.OtherPlayers = append(state.OtherPlayers, *p.Player)
-		}
-	}
-	log.Println("players ", len(game.Players))
-	out, err := json.Marshal(state)
-	if err != nil {
-		log.Println(err)
-	}
-	event.Payload = out
-
-	err = game.Players[payload.From].Conn.WriteJSON(event)
-	if err != nil {
-		log.Println(err)
-	}
+	g.writeState(player)
 }
 
 // addPlayer will add new players to Players
-func (g *Game) addPlayer(conn *websocket.Conn, player *Player) {
+func (g *Game) addPlayer(player *Player) {
 	// // Lock so we can manipulate
 	// g.RWMutex.Lock()
 	// defer g.RWMutex.Unlock()
 
 	// Add Player
 	// TODO: Change to normal unique id
-	playerConn := NewPlayerConn(conn, player)
-	g.Players[player.Id] = playerConn
+	g.Players[player.Id] = player
 }
 
 func (g *Game) deletePlayer(playerId int32) {
 	log.Println("Deleting player", playerId)
 	delete(g.Players, playerId)
-}
-
-// // removePlayer will remove the player and clean up
-// func (g *Game) removePlayer(player *Player) {
-// 	// Lock so we can manipulate
-// 	g.RWMutex.Lock()
-// 	defer g.RWMutex.Unlock()
-
-// 	// Check if Player exists, then delete it
-// 	if _, ok := g.Players[player.ID]; ok {
-// 		// close connection
-// 		player.Connection.Close()
-// 		// remove
-// 		delete(g.Players, player.ID)
-// 	}
-// }
-
-// setupEventHandlers configures and adds all handlers
-func (g *Game) setupEventHandlers() {
-	g.handlers[EventSendMessage] = SendMessageHandler
-}
-
-// routeEvent is used to make sure the correct event goes into the correct handler
-func (g *Game) routeEvent(event Event, p *Player) error {
-	// Check if Handler is present in Map
-	if handler, ok := g.handlers[event.Type]; ok {
-		// Execute the handler and return any err
-		if err := handler(event, p); err != nil {
-			return err
-		}
-		return nil
-	} else {
-		return ErrEventNotSupported
-	}
 }
