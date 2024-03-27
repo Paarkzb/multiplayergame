@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -37,10 +39,9 @@ var websocketUpgrader = websocket.Upgrader{
 type Game struct {
 	Players PlayerList
 
-	// // Using a syncMutex here to be able to lock state before editing players
-	// // Could also use the Channels to block
-	// sync.RWMutex
-
+	// Using a syncMutex here to be able to lock state before editing players
+	// Could also use the Channels to block
+	sync.RWMutex
 }
 
 // NewGame is used to initalize all the values inside the Game
@@ -63,9 +64,17 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	player := NewPlayer(conn, id, "", Position{X: 0, Y: 0})
+	player := NewPlayer(conn, id, "", Position{X: 250, Y: 250}, 0)
 	game.addPlayer(player)
 	id++
+
+	// go func() {
+	// 	for {
+	// 		log.Println("write state in gourutine")
+	// 		game.writeState(player)
+	// 		time.Sleep(1000)
+	// 	}
+	// }()
 
 	// handle incoming messages
 	for {
@@ -84,8 +93,8 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		game.handleMessages(event, player)
-
 	}
+
 	game.deletePlayer(player.Id)
 }
 
@@ -100,6 +109,8 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 // }
 
 func (g *Game) writeState(player *Player) {
+	game.RWMutex.Lock()
+	defer game.RWMutex.Unlock()
 	var state struct {
 		Type         string   `json:"type"`
 		Player       Player   `json:"player"`
@@ -129,13 +140,16 @@ func (g *Game) handleMessages(event Event, player *Player) {
 		direction := event.Payload
 		switch direction {
 		case "left":
-			player.Pos.X -= 10
+			player.Angle -= 5
 		case "right":
-			player.Pos.X += 10
-		case "up":
-			player.Pos.Y -= 10
-		case "down":
+			player.Angle += 5
+		case "forward":
+			rad := float64(player.Angle * math.Pi / 180)
+			player.Pos.X += float32(math.Cos(rad)) * 10;
 			player.Pos.Y += 10
+		case "back":
+			player.Pos.X *= 10
+			player.Pos.Y *= 10
 		}
 	}
 

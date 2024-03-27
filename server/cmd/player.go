@@ -9,18 +9,20 @@ type Position struct {
 
 // Player is a websocket player
 type Player struct {
-	Conn *websocket.Conn `json:"-"`
-	Id   int32           `json:"id"`
-	Name string          `json:"name"`
-	Pos  Position        `json:"position"`
+	Conn  *websocket.Conn `json:"-"`
+	Id    int32           `json:"id"`
+	Name  string          `json:"name"`
+	Pos   Position        `json:"position"`
+	Angle float32         `json:"angle"`
 }
 
-func NewPlayer(conn *websocket.Conn, id int32, name string, pos Position) *Player {
+func NewPlayer(conn *websocket.Conn, id int32, name string, pos Position, angle float32) *Player {
 	return &Player{
-		Conn: conn,
-		Id:   id,
-		Name: name,
-		Pos:  pos,
+		Conn:  conn,
+		Id:    id,
+		Name:  name,
+		Pos:   pos,
+		Angle: angle,
 	}
 }
 

@@ -1,15 +1,28 @@
 class Player {
-    constructor(id, name, pos) {
+    constructor(id, name, pos, angle) {
         this.id = id;
         this.name = name;
         this.pos = pos;
+        this.width = 50;
+        this.height = 50;
+        this.angle = angle;
     }
 
     draw() {
+        ctx.save();
+
         ctx.beginPath();
         ctx.fillStyle = "red";
-        ctx.fillRect(this.pos.x, this.pos.y, 50, 50);
+        console.log("DRAW", this.pos.x, this.pos.y, this.width, this.height, this.angle);
+        ctx.translate(this.pos.x + this.width/2, this.pos.y + this.height/2 );
+        ctx.rotate((this.angle * Math.PI) / 180);
+        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
         ctx.closePath();
+
+        // Reset current transformation matrix to the identity matrix
+        // ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        ctx.restore();
     }
 }
 
@@ -41,14 +54,14 @@ class Game {
     }
 
     getCurrentState(evt) {
-        console.log(evt);
-        let player = new Player(evt.player.id, evt.player.name, evt.player.position);
+        console.log("getCurrentState", evt);
+        let player = new Player(evt.player.id, evt.player.name, evt.player.position, evt.player.angle);
         let otherPlayers = [];
         evt.otherPlayers?.forEach((otherPlayer) => {
-            let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position);
+            let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position, otherPlayer.angle);
             otherPlayers.push(oPlayer);
         })
-        console.log("Current State", otherPlayers);
+        console.log("Current State", player);
         return {
             player: player,
             otherPlayers: otherPlayers,
@@ -90,14 +103,14 @@ function connectWebsocket() {
                 if (event.code == "KeyA") {
                     sendEvent("move", "left");
                 }
-                if (event.code == "KeyD") {
+                else if (event.code == "KeyD") {
                     sendEvent("move", "right");
                 }
-                if (event.code == "KeyW") {
-                    sendEvent("move", "up");
+                else if (event.code == "KeyW") {
+                    sendEvent("move", "forward");
                 }
-                if (event.code == "KeyS") {
-                    sendEvent("move", "down");
+                else if (event.code == "KeyS") {
+                    sendEvent("move", "back");
                 }
             });
         };
