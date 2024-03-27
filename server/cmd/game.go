@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -68,13 +69,31 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	game.addPlayer(player)
 	id++
 
-	// go func() {
-	// 	for {
-	// 		log.Println("write state in gourutine")
-	// 		game.writeState(player)
-	// 		time.Sleep(1000)
-	// 	}
-	// }()
+	go func() {
+		for {
+			log.Println(player.keys)
+			if player.keys.A {
+				player.Angle -= 5
+			}
+			if player.keys.D {
+				player.Angle += 5
+			}
+			if player.keys.W {
+				rad := float64(player.Angle * math.Pi / 180)
+				player.Pos.X += float32(math.Cos(rad)) * player.Speed
+				player.Pos.Y += float32(math.Sin(rad)) * player.Speed
+			}
+			if player.keys.S {
+				rad := float64(player.Angle * math.Pi / 180)
+				player.Pos.X -= float32(math.Cos(rad)) * player.Speed
+				player.Pos.Y -= float32(math.Sin(rad)) * player.Speed
+			}
+
+			log.Println("write state in gourutine")
+			game.writeState(player)
+			time.Sleep(50 * time.Millisecond)
+		}
+	}()
 
 	// handle incoming messages
 	for {
@@ -136,20 +155,31 @@ func (g *Game) handleMessages(event Event, player *Player) {
 	case "login":
 		player.Name = event.Payload
 
-	case "move":
+	case "keydown":
 		direction := event.Payload
+		log.Println("Key pressed", event.Payload)
 		switch direction {
 		case "left":
-			player.Angle -= 5
+			player.keys.A = true
 		case "right":
-			player.Angle += 5
+			player.keys.D = true
 		case "forward":
-			rad := float64(player.Angle * math.Pi / 180)
-			player.Pos.X += float32(math.Cos(rad)) * 10;
-			player.Pos.Y += 10
+			player.keys.W = true
 		case "back":
-			player.Pos.X *= 10
-			player.Pos.Y *= 10
+			player.keys.S = true
+		}
+	case "keyup":
+		direction := event.Payload
+		log.Println("Key unpressed", event.Payload)
+		switch direction {
+		case "left":
+			player.keys.A = false
+		case "right":
+			player.keys.D = false
+		case "forward":
+			player.keys.W = false
+		case "back":
+			player.keys.S = false
 		}
 	}
 

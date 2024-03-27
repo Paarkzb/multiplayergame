@@ -101,16 +101,30 @@ function connectWebsocket() {
 
             document.addEventListener("keydown", function (event) {
                 if (event.code == "KeyA") {
-                    sendEvent("move", "left");
+                    sendEvent("keydown", "left");
                 }
-                else if (event.code == "KeyD") {
-                    sendEvent("move", "right");
+                if (event.code == "KeyD") {
+                    sendEvent("keydown", "right");
                 }
-                else if (event.code == "KeyW") {
-                    sendEvent("move", "forward");
+                if (event.code == "KeyW") {
+                    sendEvent("keydown", "forward");
                 }
-                else if (event.code == "KeyS") {
-                    sendEvent("move", "back");
+                if (event.code == "KeyS") {
+                    sendEvent("keydown", "back");
+                }
+            });
+            document.addEventListener("keyup", function (event) {
+                if (event.code == "KeyA") {
+                    sendEvent("keyup", "left");
+                }
+                if (event.code == "KeyD") {
+                    sendEvent("keyup", "right");
+                }
+                if (event.code == "KeyW") {
+                    sendEvent("keyup", "forward");
+                }
+                if (event.code == "KeyS") {
+                    sendEvent("keyup", "back");
                 }
             });
         };
@@ -169,18 +183,19 @@ class EventMsg {
  * payload - the data payload
  * */
 function sendEvent(eventName, payload) {
-    let msg;
-    switch (eventName) {
-        case "login":
-            msg = payload;
-            break;
-        case "move":
-            msg = payload;
-            break;
-    }
+    // let msg;
+    // switch (eventName) {
+    //     case "login":
+    //         msg = payload;
+    //         break;
+    //     case "move":
+    //         msg = payload;
+    //         break;
+    // }
 
     // Create a event Object with a event named send_message
-    const event = new EventMsg(eventName, msg);
+    const event = new EventMsg(eventName, payload);
+    console.log("SENDEVENT", event);
     conn.send(JSON.stringify(event));
 }
 
