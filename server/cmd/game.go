@@ -131,10 +131,12 @@ func (g *Game) writeState(player *Player) {
 	game.RWMutex.Lock()
 	defer game.RWMutex.Unlock()
 	var state struct {
+		Timestamp    int64    `json:"timestamp"`
 		Type         string   `json:"type"`
 		Player       Player   `json:"player"`
 		OtherPlayers []Player `json:"otherPlayers"`
 	}
+	state.Timestamp = time.Now().UnixNano()
 	state.Type = "update"
 	state.Player = *player
 	for _, p := range game.Players {

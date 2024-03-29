@@ -32,8 +32,10 @@ class Game {
     constructor() {
         this.canvas = document.getElementById("game-canvas");;
         this.ctx = this.canvas.getContext("2d");
-        this.firstUpdate = false;
-        this.state = "";
+        this.firstServerTimestamp = 0;
+        this.gameStart = 0;
+        this.serverDelay = 100;
+        this.states = [];
     }
 
     start() {
@@ -45,40 +47,73 @@ class Game {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         const {player, otherPlayers} = this.getCurrentState();
-
+        console.log("PLAYER", player);
         if(player) {
             console.log("Update", player);
             console.log("Others", otherPlayers);
 
-            player.draw();
-            otherPlayers.forEach((otherPlayer) => {otherPlayer.draw();});
+            let playerObject = new Player(player.id, player.name, player.position, player.angle, this.ctx);
+            playerObject.draw();
+            otherPlayers?.forEach((otherPlayer) => {
+                let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position, otherPlayer.angle, this.ctx);
+                oPlayer.draw();
+            })
+
         }
     }
 
     gameLoop() {
+        console.log("UPDATE IN GAME LOOP");
         this.update();
 
         requestAnimationFrame(this.gameLoop());
     }
 
     getCurrentState() {
-        let player = new Player(this.state.player.id, this.state.player.name, this.state.player.position, this.state.player.angle, this.ctx);
-        let otherPlayers = [];
-        this.state.otherPlayers?.forEach((otherPlayer) => {
-            let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position, otherPlayer.angle, this.ctx);
-            otherPlayers.push(oPlayer);
-        })
-        console.log("Current State", player);
-        return {
-            player: player,
-            otherPlayers: otherPlayers,
-        }
 
+        const stateIndex = this.getStateIndex();
+        const serverTime = this.getServerTime();
+
+        if(stateIndex < 0 || stateIndex === this.states.length - 1) {
+            return this.states[this.states.length - 1];
+        } else {
+            return {
+                player: this.states[this.states.length - 1].player,
+                otherPlayers: this.states[this.states.length - 1].otherPlayers,
+            }
+        }
     }
 
     setCurrentState(evt){
+        if(!this.firstServerTimestamp) {
+            this.firstServerTimestamp = evt.timestamp;
+            this.gameStart = Date.now();
+        }
         console.log("setCurrentState", evt);
-        this.state = evt;
+        this.states.push(evt);
+
+        const stateIndex = this.getStateIndex();
+        if(stateIndex > 0) {
+            this.states = this.states.slice(0, stateIndex);
+        }
+    }
+
+    getServerTime(){
+        return this.firstServerTimestamp + Date.now() - this.gameStart - this.serverDelay;
+    }
+
+    getStateIndex() {
+        const serverTime = this.getServerTime();
+        for(let i = this.states.length - 1; i >= 0; i--) {
+            if(this.states[i].timestamp <= serverTime) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    lerp(startPos, endPos, t) {
+        return startPos * (1 - t) + endPos * t;
     }
 }
 
@@ -107,7 +142,8 @@ function connectWebsocket() {
             sendEvent("login", username);
             
             game.start();
-
+            game.gameLoop();
+            
             document.addEventListener("keydown", function (event) {
                 if (event.code == "KeyA") {
                     sendEvent("keydown", "left");
@@ -167,10 +203,6 @@ function routeEvent(event) {
         case "update":
             game.setCurrentState(event);
 
-            if(!game.firstUpdate) {
-                game.update();
-            }
-            // game.update();
             break;
         default:
             alert("unsupported message type");
