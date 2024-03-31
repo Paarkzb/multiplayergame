@@ -85,7 +85,7 @@ class Game {
             const nextState = this.states[stateIndex + 1];
             const ratio = (serverTime - currentState.timestamp) / (nextState.timestamp - currentState.timestamp);
             return {
-                player: this.lerp(currentState.player, nextState.player, ratio),
+                player: this.lerpObject(currentState.player, nextState.player, ratio),
                 otherPlayers: this.lerpArray(currentState.otherPlayers, nextState.otherPlayers, ratio),
             }
         }
@@ -122,64 +122,34 @@ class Game {
     }
 
     lerp(start, end, t) {
-        
+        return start * (1 - t) + end * t;
+    }
+
+    lerpObject(start, end, t) { 
         if(!end) {
             return start;
         }
 
-        start.position.x = start.position.x * (1 - t) + end.position.x * t;
-        start.position.y = start.position.y * (1 - t) + end.position.y * t;
+        start.position.x = this.lerp(start.position.x, end.position.x, t);
+        start.position.y = this.lerp(start.position.y, end.position.y, t);
 
         start.angle = this.lerpAngle(start.angle, end.angle, t);
-        // start.angle = start.angle * (1 - t) + end.angle * t;;
 
         return start;
-
-        // const interpolated = {};
-        // Object.keys(start).forEach(key => {
-        //     if(key === "position") {
-        //         interpolated[key] = {};
-        //         interpolated[key].x = start[key].x * (1 - t) + end[key].x * t;
-        //         interpolated[key].y = start[key].y * (1 - t) + end[key].y * t;
-        //     } else {
-        //         interpolated[key] = start[key];
-        //     }
-        // });
-
-        // return interpolated;
     }
 
     lerpArray(startArray, endArray, t) {
-        return startArray.map(elem => this.lerp(elem, endArray.find(elem2 => elem.id === elem2.id), t));
+        return startArray.map(elem => this.lerpObject(elem, endArray.find(elem2 => elem.id === elem2.id), t));
         // return startArray.map((elem, index) => this.lerp(elem, endArray[index], t));
     }
 
+    repeat(t, m) {
+        return Math.min(m, Math.max(0, t - Math.floor(t / m) * m));
+    }
+
     lerpAngle(startAngle, endAngle, t) {
-        // const absD = Math.abs(startAngle - endAngle);
-        // if(absD >= Math.PI) {
-        //     if(startAngle > endAngle) {
-        //         return startAngle + (endAngle + 2 * Math.PI - startAngle) * t
-        //     } else {
-        //         return startAngle - (endAngle - 2 * Math.PI - startAngle) * t
-        //     }
-        // } else {
-        //     return startAngle + (endAngle - startAngle) * t;
-        // }
-
-        // const absD = Math.abs(startAngle - endAngle);
-        // if(absD >= Math.PI) {
-        //     if(startAngle > endAngle) {
-        //         return startAngle * (1 - t) + (endAngle + 2 * Math.PI) * t
-        //     } else {
-        //         return startAngle * (1 - t) - (endAngle - 2 * Math.PI) * t
-        //     }
-        // } else {
-        //     return startAngle * (1 - t) + endAngle * t;
-        // }
-
-        const max = Math.PI * 2;
-        const da = (endAngle - startAngle) % max;
-        return startAngle + (2 * da % max - da) * t;
+        const dt = this.repeat(endAngle - startAngle, 2 * Math.PI);
+        return this.lerp(startAngle, startAngle + (dt > Math.PI ? dt - 2 * Math.PI : dt), t);
     }
 }
 
