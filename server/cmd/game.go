@@ -57,6 +57,7 @@ func NewGame() *Game {
 // serveWS is a HTTP Handler that the has the Game that allows connections
 func serveWS(w http.ResponseWriter, r *http.Request) {
 	log.Println("New connection")
+
 	// Begin by upgrading the HTTP request
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -70,32 +71,36 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	id++
 
 	go func() {
-		for {
+		prevUpdate := time.Now()
+		for range time.Tick(16 * time.Millisecond) {
 			if player == nil {
 				return
 			}
 
+			dt := float32(time.Since(prevUpdate).Milliseconds()) / 1000
+			prevUpdate = time.Now()
+
 			log.Println(player.keys)
 			if player.keys.A {
-				player.Angle -= player.RotateSpeed * math.Pi / 180
+				player.Angle -= player.RotateSpeed * math.Pi / 180 * dt
 			}
 			if player.keys.D {
-				player.Angle += player.RotateSpeed * math.Pi / 180
+				player.Angle += player.RotateSpeed * math.Pi / 180 * dt
 			}
 			if player.keys.W {
 				rad := float64(player.Angle)
-				player.Pos.X += float32(math.Cos(rad)) * player.Speed
-				player.Pos.Y += float32(math.Sin(rad)) * player.Speed
+				player.Pos.X += float32(math.Cos(rad)) * player.Speed * dt
+				player.Pos.Y += float32(math.Sin(rad)) * player.Speed * dt
 			}
 			if player.keys.S {
 				rad := float64(player.Angle)
-				player.Pos.X -= float32(math.Cos(rad)) * player.Speed
-				player.Pos.Y -= float32(math.Sin(rad)) * player.Speed
+				player.Pos.X -= float32(math.Cos(rad)) * player.Speed * dt
+				player.Pos.Y -= float32(math.Sin(rad)) * player.Speed * dt
 			}
 
 			log.Println("write state in gourutine")
 			game.writeState(player)
-			time.Sleep(20 * time.Millisecond)
+			// time.Sleep(20 * time.Millisecond)
 		}
 	}()
 

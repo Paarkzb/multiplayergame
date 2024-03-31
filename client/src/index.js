@@ -12,7 +12,7 @@ class Player {
     }
 
     draw() {
-        this.ctx.save();
+        // this.ctx.save();
 
         this.ctx.beginPath();
         this.ctx.fillStyle = "red";
@@ -23,9 +23,9 @@ class Player {
         this.ctx.closePath();
 
         // Reset current transformation matrix to the identity matrix
-        // this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-        this.ctx.restore();
+        // this.ctx.restore();
     }
 }
 

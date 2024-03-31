@@ -33,8 +33,8 @@ func NewPlayer(conn *websocket.Conn, id int32, name string, pos Position, angle 
 		Name:        name,
 		Pos:         pos,
 		Angle:       angle,
-		Speed:       6,
-		RotateSpeed: 3,
+		Speed:       250,
+		RotateSpeed: 125,
 		keys:        Keys{A: false, D: false, W: false, S: false},
 	}
 }
