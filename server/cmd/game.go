@@ -71,27 +71,31 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		for {
+			if player == nil {
+				return
+			}
+
 			log.Println(player.keys)
 			if player.keys.A {
-				player.Angle -= 5
+				player.Angle -= player.RotateSpeed * math.Pi / 180
 			}
 			if player.keys.D {
-				player.Angle += 5
+				player.Angle += player.RotateSpeed * math.Pi / 180
 			}
 			if player.keys.W {
-				rad := float64(player.Angle * math.Pi / 180)
+				rad := float64(player.Angle)
 				player.Pos.X += float32(math.Cos(rad)) * player.Speed
 				player.Pos.Y += float32(math.Sin(rad)) * player.Speed
 			}
 			if player.keys.S {
-				rad := float64(player.Angle * math.Pi / 180)
+				rad := float64(player.Angle)
 				player.Pos.X -= float32(math.Cos(rad)) * player.Speed
 				player.Pos.Y -= float32(math.Sin(rad)) * player.Speed
 			}
 
 			log.Println("write state in gourutine")
 			game.writeState(player)
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 		}
 	}()
 
@@ -115,6 +119,7 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game.deletePlayer(player.Id)
+	player = nil
 }
 
 // Response to the client after getting message
@@ -136,9 +141,10 @@ func (g *Game) writeState(player *Player) {
 		Player       Player   `json:"player"`
 		OtherPlayers []Player `json:"otherPlayers"`
 	}
-	state.Timestamp = time.Now().UnixNano()
+	state.Timestamp = time.Now().UnixMilli()
 	state.Type = "update"
 	state.Player = *player
+	state.OtherPlayers = make([]Player, 0)
 	for _, p := range game.Players {
 		if p.Id != player.Id {
 			state.OtherPlayers = append(state.OtherPlayers, *p)
@@ -185,7 +191,7 @@ func (g *Game) handleMessages(event Event, player *Player) {
 		}
 	}
 
-	g.writeState(player)
+	// g.writeState(player)
 }
 
 // addPlayer will add new players to Players
