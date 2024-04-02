@@ -1,4 +1,5 @@
 import Player from "./player";
+import Bullet from "./bullet";
 
 export default class Game {
     constructor() {
@@ -31,7 +32,7 @@ export default class Game {
         this.ctx.closePath();
 
         
-        const {player, otherPlayers} = this.getCurrentState();
+        const {player, otherPlayers, bullets} = this.getCurrentState();
         console.log("UPDATE", player);
         if(player) {
             console.log("Update", player);
@@ -42,7 +43,11 @@ export default class Game {
             otherPlayers?.forEach((otherPlayer) => {
                 let oPlayer = new Player(otherPlayer.id, otherPlayer.name, otherPlayer.position, otherPlayer.angle, this.ctx);
                 oPlayer.draw();
-            })
+            });
+            bullets?.forEach((bullet) => {
+                let oBullet = new Bullet(bullet.position, bullet.angle, bullet.bullet_type, this.ctx);
+                oBullet.draw();
+            });
 
         }
 
@@ -62,6 +67,7 @@ export default class Game {
             return {
                 player: this.states[this.states.length - 1].player,
                 otherPlayers: this.states[this.states.length - 1].otherPlayers,
+                bullets: this.states[this.states.length - 1].bullets,
             };
         } else {
             const currentState = this.states[stateIndex];
@@ -70,6 +76,7 @@ export default class Game {
             return {
                 player: this.lerpObject(currentState.player, nextState.player, ratio),
                 otherPlayers: this.lerpArray(currentState.otherPlayers, nextState.otherPlayers, ratio),
+                bullets: this.lerpArray(currentState.bullets, nextState.bullets, ratio),
             }
         }
     }

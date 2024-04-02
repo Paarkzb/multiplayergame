@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -12,9 +11,21 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type State struct {
+	Timestamp    int64     `json:"timestamp"`
+	Type         string    `json:"type"`
+	Player       *Player   `json:"player"`
+	OtherPlayers []*Player `json:"otherPlayers"`
+	Bullets      []*Bullet `json:"bullets"`
+}
+
 // Create a Game instance used to handle WebSocket Connections
 var game = NewGame()
 var id int32 = 0
+
+// Players is a map used to help manage a map of players
+type Players map[int32]*Player
+type Bullets []*Bullet
 
 /*
 *
@@ -39,8 +50,8 @@ var websocketUpgrader = websocket.Upgrader{
 
 // Game is used to hold references to all Players Registered, and Broadcasting etc
 type Game struct {
-	Players PlayerList
-
+	Players Players
+	Bullets Bullets
 	// Using a syncMutex here to be able to lock state before editing players
 	// Could also use the Channels to block
 	sync.RWMutex
@@ -49,7 +60,8 @@ type Game struct {
 // NewGame is used to initalize all the values inside the Game
 func NewGame() *Game {
 	g := &Game{
-		Players: make(PlayerList),
+		Players: make(Players),
+		Bullets: make(Bullets, 0),
 	}
 
 	return g
@@ -83,21 +95,10 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 				dt := float32(time.Since(prevUpdate).Milliseconds()) / 1000
 				prevUpdate = time.Now()
 
-				if player.keys.A {
-					player.Angle -= player.RotateSpeed * math.Pi / 180 * dt
-				}
-				if player.keys.D {
-					player.Angle += player.RotateSpeed * math.Pi / 180 * dt
-				}
-				if player.keys.W {
-					rad := float64(player.Angle)
-					player.Pos.X += float32(math.Cos(rad)) * player.Speed * dt
-					player.Pos.Y += float32(math.Sin(rad)) * player.Speed * dt
-				}
-				if player.keys.S {
-					rad := float64(player.Angle)
-					player.Pos.X -= float32(math.Cos(rad)) * player.Speed * dt
-					player.Pos.Y -= float32(math.Sin(rad)) * player.Speed * dt
+				player.update(dt)
+
+				for _, bullet := range game.Bullets {
+					bullet.update(dt)
 				}
 
 				log.Println("write state in gourutine")
@@ -133,21 +134,19 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 func (g *Game) writeState(player *Player) {
 	g.RWMutex.Lock()
 	defer g.RWMutex.Unlock()
-	var state struct {
-		Timestamp    int64    `json:"timestamp"`
-		Type         string   `json:"type"`
-		Player       Player   `json:"player"`
-		OtherPlayers []Player `json:"otherPlayers"`
-	}
+
+	var state State
+
 	state.Timestamp = time.Now().UnixMilli()
 	state.Type = "update"
-	state.Player = *player
-	state.OtherPlayers = make([]Player, 0)
+	state.Player = player
+	state.OtherPlayers = make([]*Player, 0)
 	for _, p := range game.Players {
 		if p.Id != player.Id {
-			state.OtherPlayers = append(state.OtherPlayers, *p)
+			state.OtherPlayers = append(state.OtherPlayers, p)
 		}
 	}
+	state.Bullets = g.Bullets
 	log.Println("players ", len(game.Players))
 
 	err := player.Conn.WriteJSON(state)
@@ -173,6 +172,8 @@ func (g *Game) handleMessages(event Event, player *Player) {
 			player.keys.W = true
 		case "back":
 			player.keys.S = true
+		case "space":
+			player.keys.Space = true
 		}
 	case "keyup":
 		direction := event.Payload
@@ -186,6 +187,8 @@ func (g *Game) handleMessages(event Event, player *Player) {
 			player.keys.W = false
 		case "back":
 			player.keys.S = false
+		case "space":
+			player.keys.Space = false
 		}
 	}
 
@@ -209,4 +212,8 @@ func (g *Game) deletePlayer(playerId int32) {
 
 	log.Println("Deleting player", playerId)
 	delete(g.Players, playerId)
+}
+
+func (g *Game) addBullet(bullet *Bullet) {
+	g.Bullets = append(g.Bullets, bullet)
 }

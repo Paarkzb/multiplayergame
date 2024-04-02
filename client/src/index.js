@@ -63,12 +63,6 @@ function routeEvent(event) {
     switch (event.type) {
         case "update":
             game.setCurrentState(event);
-            // if(!game.firstUpdate) {
-            //     // setInterval(game.update(), 1000 / 60);
-            //     game.update();
-            //     game.firstUpdate = true;
-            // }
-            // game.update();
             break;
         default:
             alert("unsupported message type");
@@ -102,6 +96,9 @@ function addListenters() {
         if (event.code == "KeyS") {
             sendEvent("keydown", "back");
         }
+        if (event.code == "Space") {
+            sendEvent("keydown", "space");
+        }
     });
     document.addEventListener("keyup", function (event) {
         if (event.code == "KeyA") {
@@ -115,6 +112,9 @@ function addListenters() {
         }
         if (event.code == "KeyS") {
             sendEvent("keyup", "back");
+        }
+        if (event.code == "Space") {
+            sendEvent("keyup", "space");
         }
     });
 }

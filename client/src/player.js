@@ -1,10 +1,10 @@
 export default class Player {
     animationFrame;
 
-    constructor(id, name, pos, angle, ctx) {
+    constructor(id, name, position, angle, ctx) {
         this.id = id;
         this.name = name;
-        this.pos = pos;
+        this.position = position;
         this.width = 50;
         this.height = 50;
         this.angle = angle;
@@ -18,7 +18,7 @@ export default class Player {
         this.ctx.beginPath();
         this.ctx.fillStyle = "red";
         // console.log("DRAW", this.pos.x, this.pos.y, this.width, this.height, this.angle);
-        this.ctx.translate(this.pos.x + this.width/2, this.pos.y + this.height/2 );
+        this.ctx.translate(this.position.x + this.width/2, this.position.y + this.height/2 );
         this.ctx.rotate(this.angle);
         this.ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
         this.ctx.closePath();
