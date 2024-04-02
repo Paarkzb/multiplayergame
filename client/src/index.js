@@ -1,5 +1,6 @@
 import Game from "./game";
-import { routeEvent, sendEvent } from "./event";
+import EventMsg from "./event";
+
 
 let game = new Game();
 
@@ -30,7 +31,7 @@ function connectWebsocket() {
             game.start();
             game.animationFrame = requestAnimationFrame(() => game.update());
             
-            game.addListenters();
+            addListenters();
         };
 
         game.conn.onmessage = function (event) {
@@ -47,4 +48,73 @@ function connectWebsocket() {
     } else {
         alert("Not supporting websockets");
     }
+}
+
+/**
+     * routeEvent is a proxy function that routes
+     * events into their correct Handler
+     * based on the type field
+     * */
+function routeEvent(event) {
+    if (event.type === undefined) {
+        alert("no 'type' field in event");
+    }
+    console.log("EVENT FROM SERVER", event);
+    switch (event.type) {
+        case "update":
+            game.setCurrentState(event);
+            // if(!game.firstUpdate) {
+            //     // setInterval(game.update(), 1000 / 60);
+            //     game.update();
+            //     game.firstUpdate = true;
+            // }
+            // game.update();
+            break;
+        default:
+            alert("unsupported message type");
+            break;
+    }
+}
+
+/**
+ * sendEvent
+ * eventName - the event name to send on
+ * payload - the data payload
+ * */
+function sendEvent (eventName, payload) {
+    // Create a event Object with a event named send_message
+    const event = new EventMsg(eventName, payload);
+    console.log("SENDEVENT", event);
+    game.conn.send(JSON.stringify(event));
+}
+
+function addListenters() {
+    document.addEventListener("keydown", function (event) {
+        if (event.code == "KeyA") {
+            sendEvent("keydown", "left");
+        }
+        if (event.code == "KeyD") {
+            sendEvent("keydown", "right");
+        }
+        if (event.code == "KeyW") {
+            sendEvent("keydown", "forward");
+        }
+        if (event.code == "KeyS") {
+            sendEvent("keydown", "back");
+        }
+    });
+    document.addEventListener("keyup", function (event) {
+        if (event.code == "KeyA") {
+            sendEvent("keyup", "left");
+        }
+        if (event.code == "KeyD") {
+            sendEvent("keyup", "right");
+        }
+        if (event.code == "KeyW") {
+            sendEvent("keyup", "forward");
+        }
+        if (event.code == "KeyS") {
+            sendEvent("keyup", "back");
+        }
+    });
 }

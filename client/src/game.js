@@ -1,15 +1,19 @@
 import Player from "./player";
-import { sendEvent } from "./event";
 
 export default class Game {
     constructor() {
-        this.canvas = document.getElementById("game-canvas");;
+        this.canvas = document.getElementById("game-canvas");
+        this.canvas.width = 1920;
+        this.canvas.height = 1080;
         this.ctx = this.canvas.getContext("2d");
+
         this.firstServerTimestamp = 0;
         this.gameStart = 0;
         this.serverDelay = 100;
         this.states = [];
+
         this.animationFrame;
+
         this.conn;
     }
 
@@ -20,6 +24,12 @@ export default class Game {
 
     update() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.beginPath();
+        this.ctx.fillStyle = "gray";
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.closePath();
+
         
         const {player, otherPlayers} = this.getCurrentState();
         console.log("UPDATE", player);
@@ -123,36 +133,5 @@ export default class Game {
     lerpAngle(startAngle, endAngle, t) {
         const dt = this.repeat(endAngle - startAngle, 2 * Math.PI);
         return this.lerp(startAngle, startAngle + (dt > Math.PI ? dt - 2 * Math.PI : dt), t);
-    }
-
-    addListenters() {
-        document.addEventListener("keydown", function (event) {
-            if (event.code == "KeyA") {
-                sendEvent("keydown", "left", this.conn);
-            }
-            if (event.code == "KeyD") {
-                sendEvent("keydown", "right", this.conn);
-            }
-            if (event.code == "KeyW") {
-                sendEvent("keydown", "forward", this.conn);
-            }
-            if (event.code == "KeyS") {
-                sendEvent("keydown", "back", this.conn);
-            }
-        });
-        document.addEventListener("keyup", function (event) {
-            if (event.code == "KeyA") {
-                sendEvent("keyup", "left", this.conn);
-            }
-            if (event.code == "KeyD") {
-                sendEvent("keyup", "right", this.conn);
-            }
-            if (event.code == "KeyW") {
-                sendEvent("keyup", "forward", this.conn);
-            }
-            if (event.code == "KeyS") {
-                sendEvent("keyup", "back", this.conn);
-            }
-        });
     }
 }

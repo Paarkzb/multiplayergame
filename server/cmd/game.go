@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"math"
@@ -66,6 +67,8 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	player := NewPlayer(conn, id, "", Position{X: 250, Y: 250}, 0)
 	game.addPlayer(player)
 	id++
@@ -73,34 +76,33 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		prevUpdate := time.Now()
 		for range time.Tick(16 * time.Millisecond) {
-			if player == nil {
+			select {
+			case <-ctx.Done():
 				return
-			}
+			default:
+				dt := float32(time.Since(prevUpdate).Milliseconds()) / 1000
+				prevUpdate = time.Now()
 
-			dt := float32(time.Since(prevUpdate).Milliseconds()) / 1000
-			prevUpdate = time.Now()
+				if player.keys.A {
+					player.Angle -= player.RotateSpeed * math.Pi / 180 * dt
+				}
+				if player.keys.D {
+					player.Angle += player.RotateSpeed * math.Pi / 180 * dt
+				}
+				if player.keys.W {
+					rad := float64(player.Angle)
+					player.Pos.X += float32(math.Cos(rad)) * player.Speed * dt
+					player.Pos.Y += float32(math.Sin(rad)) * player.Speed * dt
+				}
+				if player.keys.S {
+					rad := float64(player.Angle)
+					player.Pos.X -= float32(math.Cos(rad)) * player.Speed * dt
+					player.Pos.Y -= float32(math.Sin(rad)) * player.Speed * dt
+				}
 
-			log.Println(player.keys)
-			if player.keys.A {
-				player.Angle -= player.RotateSpeed * math.Pi / 180 * dt
+				log.Println("write state in gourutine")
+				game.writeState(player)
 			}
-			if player.keys.D {
-				player.Angle += player.RotateSpeed * math.Pi / 180 * dt
-			}
-			if player.keys.W {
-				rad := float64(player.Angle)
-				player.Pos.X += float32(math.Cos(rad)) * player.Speed * dt
-				player.Pos.Y += float32(math.Sin(rad)) * player.Speed * dt
-			}
-			if player.keys.S {
-				rad := float64(player.Angle)
-				player.Pos.X -= float32(math.Cos(rad)) * player.Speed * dt
-				player.Pos.Y -= float32(math.Sin(rad)) * player.Speed * dt
-			}
-
-			log.Println("write state in gourutine")
-			game.writeState(player)
-			// time.Sleep(20 * time.Millisecond)
 		}
 	}()
 
@@ -125,21 +127,12 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 
 	game.deletePlayer(player.Id)
 	player = nil
+	cancel()
 }
 
-// Response to the client after getting message
-// func (g *Game) broadcast(event Event) {
-// 	for _, player := range g.Players {
-// 		err := player.Conn.WriteJSON(event)
-// 		if err != nil {
-// 			log.Println(err, "broadcast")
-// 		}
-// 	}
-// }
-
 func (g *Game) writeState(player *Player) {
-	game.RWMutex.Lock()
-	defer game.RWMutex.Unlock()
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
 	var state struct {
 		Timestamp    int64    `json:"timestamp"`
 		Type         string   `json:"type"`
@@ -170,7 +163,7 @@ func (g *Game) handleMessages(event Event, player *Player) {
 
 	case "keydown":
 		direction := event.Payload
-		log.Println("Key pressed", event.Payload)
+		// log.Println("Key pressed", event.Payload)
 		switch direction {
 		case "left":
 			player.keys.A = true
@@ -183,7 +176,7 @@ func (g *Game) handleMessages(event Event, player *Player) {
 		}
 	case "keyup":
 		direction := event.Payload
-		log.Println("Key unpressed", event.Payload)
+		// log.Println("Key unpressed", event.Payload)
 		switch direction {
 		case "left":
 			player.keys.A = false
@@ -201,9 +194,9 @@ func (g *Game) handleMessages(event Event, player *Player) {
 
 // addPlayer will add new players to Players
 func (g *Game) addPlayer(player *Player) {
-	// // Lock so we can manipulate
-	// g.RWMutex.Lock()
-	// defer g.RWMutex.Unlock()
+	// Lock so we can manipulate
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
 
 	// Add Player
 	// TODO: Change to normal unique id
@@ -211,6 +204,9 @@ func (g *Game) addPlayer(player *Player) {
 }
 
 func (g *Game) deletePlayer(playerId int32) {
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
+
 	log.Println("Deleting player", playerId)
 	delete(g.Players, playerId)
 }
