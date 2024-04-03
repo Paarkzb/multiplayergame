@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -21,10 +22,9 @@ type State struct {
 
 // Create a Game instance used to handle WebSocket Connections
 var game = NewGame()
-var id int32 = 0
 
 // Players is a map used to help manage a map of players
-type Players map[int32]*Player
+type Players map[string]*Player
 type Bullets []*Bullet
 
 /*
@@ -53,7 +53,6 @@ type Game struct {
 	Players Players
 	Bullets Bullets
 	// Using a syncMutex here to be able to lock state before editing players
-	// Could also use the Channels to block
 	sync.RWMutex
 }
 
@@ -71,6 +70,11 @@ func NewGame() *Game {
 func serveWS(w http.ResponseWriter, r *http.Request) {
 	log.Println("New connection")
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wg := new(sync.WaitGroup)
+
 	// Begin by upgrading the HTTP request
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -79,19 +83,25 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	worldWidth := int32(1920)
+	worldHeight := int32(1080)
+	minWidth := int32(200)
+	minHeight := int32(200)
 
-	player := NewPlayer(conn, id, "", Position{X: 250, Y: 250}, 0)
+	random := rand.New(rand.NewSource(time.Now().Unix()))
+	player := NewPlayer(conn, "", Position{
+		X: float32(random.Int31n(worldWidth-2*minWidth) + minWidth),
+		Y: float32(random.Int31n(worldHeight-2*minHeight) + minHeight),
+	}, 0)
 	game.addPlayer(player)
-	id++
 
-	go func() {
+	go func(ctx context.Context) {
+		ticker := time.NewTicker(time.Millisecond * 16)
+
 		prevUpdate := time.Now()
-		for range time.Tick(16 * time.Millisecond) {
+		for {
 			select {
-			case <-ctx.Done():
-				return
-			default:
+			case <-ticker.C:
 				dt := float32(time.Since(prevUpdate).Milliseconds()) / 1000
 				prevUpdate = time.Now()
 
@@ -103,9 +113,12 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 
 				log.Println("write state in gourutine")
 				game.writeState(player)
+			case <-ctx.Done():
+				ticker.Stop()
+				return
 			}
 		}
-	}()
+	}(ctx)
 
 	// handle incoming messages
 	for {
@@ -126,9 +139,8 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 		game.handleMessages(event, player)
 	}
 
-	game.deletePlayer(player.Id)
-	player = nil
-	cancel()
+	game.deletePlayer(player)
+	wg.Wait()
 }
 
 func (g *Game) writeState(player *Player) {
@@ -142,7 +154,7 @@ func (g *Game) writeState(player *Player) {
 	state.Player = player
 	state.OtherPlayers = make([]*Player, 0)
 	for _, p := range game.Players {
-		if p.Id != player.Id {
+		if p.ID != player.ID {
 			state.OtherPlayers = append(state.OtherPlayers, p)
 		}
 	}
@@ -203,15 +215,15 @@ func (g *Game) addPlayer(player *Player) {
 
 	// Add Player
 	// TODO: Change to normal unique id
-	g.Players[player.Id] = player
+	g.Players[player.ID] = player
 }
 
-func (g *Game) deletePlayer(playerId int32) {
+func (g *Game) deletePlayer(player *Player) {
 	g.RWMutex.Lock()
 	defer g.RWMutex.Unlock()
 
-	log.Println("Deleting player", playerId)
-	delete(g.Players, playerId)
+	log.Println("Deleting player", player.ID)
+	delete(g.Players, player.ID)
 }
 
 func (g *Game) addBullet(bullet *Bullet) {
