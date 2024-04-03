@@ -38,10 +38,13 @@ type Player struct {
 	Position    Position        `json:"position"`
 	Angle       float32         `json:"angle"`
 	Width       float32         `json:"width"`
+	Height      float32         `json:"height"`
 	Speed       float32         `json:"-"`
 	RotateSpeed float32         `json:"-"`
 	Cooldown    float32         `json:"-"`
 	keys        *Keys           `json:"-"`
+	HeadX       float32         `json:"headx"`
+	HeadY       float32         `json:"headY"`
 }
 
 func NewPlayer(conn *websocket.Conn, name string, pos Position, angle float32) *Player {
@@ -52,6 +55,7 @@ func NewPlayer(conn *websocket.Conn, name string, pos Position, angle float32) *
 		Position:    pos,
 		Angle:       angle,
 		Width:       50,
+		Height:      50,
 		Speed:       250,
 		RotateSpeed: 125,
 		Cooldown:    0,
@@ -85,12 +89,20 @@ func (p *Player) update(dt float32) {
 
 func (p *Player) shoot() {
 	// bullet := NewBullet(p.Position, p.Angle, "common")
-	x := p.Position.X + p.Width/2
-	y := p.Position.Y + p.Width/2
-	x += float32(math.Cos(float64(p.Angle))) * 30
-	y += float32(math.Cos(float64(p.Angle))) * 30
+	cx := p.Position.X + p.Width/2
+	cy := p.Position.Y + p.Height/2
+	x := p.Position.X
+	y := p.Position.Y
+	cos := float32(math.Cos(float64(p.Angle)))
+	sin := float32(math.Sin(float64(p.Angle)))
+	nx := (cos * (x - cx)) + (sin * (y - cy)) + cx
+	ny := (cos * (y - cy)) - (sin * (x - cx)) + cy
+
+	p.HeadX = nx
+	p.HeadY = ny
+
 	game.addBullet(NewBullet(&Position{
-		x,
-		y,
+		nx,
+		ny,
 	}, p.Angle, "common"))
 }
