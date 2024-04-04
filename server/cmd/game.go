@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"math"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -21,8 +20,14 @@ type State struct {
 	Bullets      []*Bullet `json:"bullets"`
 }
 
-const worldWidth = int32(1366)
-const worldHeight = int32(768)
+type Config struct {
+	Type       string `json:"type"`
+	GameWidth  int32  `json:"game_width"`
+	GameHeight int32  `json:"game_height"`
+}
+
+const worldWidth = int32(1280)
+const worldHeight = int32(720)
 const minWidth = int32(200)
 const minHeight = int32(200)
 
@@ -185,40 +190,57 @@ func (g *Game) writeState(player *Player) {
 	}
 }
 
+func (g *Game) writeConfig(player *Player) {
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
+
+	var config Config
+
+	config.Type = "config"
+	config.GameWidth = worldWidth
+	config.GameHeight = worldHeight
+
+	err := player.Conn.WriteJSON(config)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 func (g *Game) handleMessages(event Event, player *Player) {
 	switch event.Type {
 	case "login":
 		player.Name = event.Payload
+		g.writeConfig(player)
 
 	case "keydown":
 		direction := event.Payload
 		// log.Println("Key pressed", event.Payload)
 		switch direction {
 		case "left":
-			player.keys.A = true
+			player.Kyes.A = true
 		case "right":
-			player.keys.D = true
+			player.Kyes.D = true
 		case "forward":
-			player.keys.W = true
+			player.Kyes.W = true
 		case "back":
-			player.keys.S = true
+			player.Kyes.S = true
 		case "space":
-			player.keys.Space = true
+			player.Kyes.Space = true
 		}
 	case "keyup":
 		direction := event.Payload
 		// log.Println("Key unpressed", event.Payload)
 		switch direction {
 		case "left":
-			player.keys.A = false
+			player.Kyes.A = false
 		case "right":
-			player.keys.D = false
+			player.Kyes.D = false
 		case "forward":
-			player.keys.W = false
+			player.Kyes.W = false
 		case "back":
-			player.keys.S = false
+			player.Kyes.S = false
 		case "space":
-			player.keys.Space = false
+			player.Kyes.Space = false
 		}
 	}
 
@@ -231,8 +253,10 @@ func (g *Game) checkCollisions(player *Player) {
 		if p.ID != player.ID {
 			if g.checkPlayerWithPlayerCollision(player, p) {
 				// player.canMove = false
-				player.Position.X += math.Cos(player.Angle+math.Pi) * 4
-				player.Position.Y += math.Sin(player.Angle+math.Pi) * 4
+				// player.Position.X += math.Cos(player.Angle+math.Pi) * 4
+				// player.Position.Y += math.Sin(player.Angle+math.Pi) * 4
+
+				player.Position = player.PreviousPosition
 			}
 		}
 	}

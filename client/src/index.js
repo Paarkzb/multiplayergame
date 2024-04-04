@@ -64,6 +64,9 @@ function routeEvent(event) {
         case "update":
             game.setCurrentState(event);
             break;
+        case "config":
+            game.setConfig(event)
+            break
         default:
             alert("unsupported message type");
             break;

@@ -33,58 +33,61 @@ func setKeys() *Keys {
 
 // Player is a websocket player
 type Player struct {
-	Conn        *websocket.Conn `json:"-"`
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Position    *Position       `json:"position"`
-	Angle       float64         `json:"angle"`
-	Width       float64         `json:"width"`
-	Height      float64         `json:"height"`
-	Speed       float64         `json:"-"`
-	RotateSpeed float64         `json:"-"`
-	Cooldown    float64         `json:"-"`
-	keys        *Keys           `json:"-"`
-	canMove     bool            `json:"-"`
+	Conn             *websocket.Conn `json:"-"`
+	ID               string          `json:"id"`
+	Name             string          `json:"name"`
+	Position         *Position       `json:"position"`
+	PreviousPosition *Position       `json:"-"`
+	Angle            float64         `json:"angle"`
+	Width            float64         `json:"width"`
+	Height           float64         `json:"height"`
+	Speed            float64         `json:"-"`
+	RotateSpeed      float64         `json:"-"`
+	Cooldown         float64         `json:"-"`
+	Kyes             *Keys           `json:"-"`
+	Alive            bool            `json:"-"`
 }
 
 func NewPlayer(conn *websocket.Conn, name string, pos *Position, angle float64) *Player {
 	return &Player{
-		Conn:        conn,
-		ID:          uuid.New().String(),
-		Name:        name,
-		Position:    pos,
-		Angle:       angle,
-		Width:       50,
-		Height:      50,
-		Speed:       250,
-		RotateSpeed: 125,
-		Cooldown:    1,
-		keys:        setKeys(),
-		canMove:     true,
+		Conn:             conn,
+		ID:               uuid.New().String(),
+		Name:             name,
+		Position:         pos,
+		PreviousPosition: &Position{X: pos.X, Y: pos.Y},
+		Angle:            angle,
+		Width:            50,
+		Height:           50,
+		Speed:            250,
+		RotateSpeed:      125,
+		Cooldown:         1,
+		Kyes:             setKeys(),
+		Alive:            true,
 	}
 }
 
 func (p *Player) update(dt float64) {
 	p.Cooldown += dt
-	log.Println(p.canMove)
+	log.Println(p.Alive)
 
-	if p.canMove {
-		if p.keys.A {
+	if p.Alive {
+		p.PreviousPosition = &Position{X: p.Position.X, Y: p.Position.Y}
+		if p.Kyes.A {
 			p.Angle -= p.RotateSpeed * math.Pi / 180 * dt
 		}
-		if p.keys.D {
+		if p.Kyes.D {
 			p.Angle += p.RotateSpeed * math.Pi / 180 * dt
 		}
-		if p.keys.W {
+		if p.Kyes.W {
 			p.Position.X += math.Cos(p.Angle) * p.Speed * dt
 			p.Position.Y += math.Sin(p.Angle) * p.Speed * dt
 		}
-		if p.keys.S {
+		if p.Kyes.S {
 			p.Position.X -= math.Cos(p.Angle) * p.Speed * dt
 			p.Position.Y -= math.Sin(p.Angle) * p.Speed * dt
 		}
 	}
-	if p.keys.Space {
+	if p.Kyes.Space {
 		if p.Cooldown > 1 {
 			p.shoot()
 			p.Cooldown = 0

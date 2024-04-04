@@ -6,9 +6,6 @@ import Bullet from "./bullet";
 export default class Game {
     constructor() {
         this.canvas = document.getElementById("game-canvas");
-        this.canvas.width = 1366;
-        this.canvas.height = 768;
-        console.log(this.canvas.width, this.canvas.height);
         this.ctx = this.canvas.getContext("2d");
 
         this.firstServerTimestamp = 0;
@@ -143,5 +140,10 @@ export default class Game {
     lerpAngle(startAngle, endAngle, t) {
         const dt = this.repeat(endAngle - startAngle, 2 * Math.PI);
         return this.lerp(startAngle, startAngle + (dt > Math.PI ? dt - 2 * Math.PI : dt), t);
+    }
+
+    setConfig(config) {
+        this.canvas.width = config.game_width;
+        this.canvas.height = config.game_height;
     }
 }
