@@ -17,7 +17,7 @@ export default class Player {
 
         this.ctx.beginPath();
         this.ctx.fillStyle = "red";
-        // console.log("DRAW", this.pos.x, this.pos.y, this.width, this.height, this.angle);
+        console.log("DRAW", this.position.x, this.position.y, this.width, this.height, this.angle);
         this.ctx.translate(this.position.x + this.width/2, this.position.y + this.height/2 );
         this.ctx.rotate(this.angle);
         this.ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
@@ -26,7 +26,6 @@ export default class Player {
         // Reset current transformation matrix to the identity matrix
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-        this.ctx.fillRect(this.)
 
         this.ctx.closePath();
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -20,12 +21,17 @@ type State struct {
 	Bullets      []*Bullet `json:"bullets"`
 }
 
+const worldWidth = int32(1366)
+const worldHeight = int32(768)
+const minWidth = int32(200)
+const minHeight = int32(200)
+
 // Create a Game instance used to handle WebSocket Connections
 var game = NewGame()
 
 // Players is a map used to help manage a map of players
 type Players map[string]*Player
-type Bullets []*Bullet
+type Bullets map[string]*Bullet
 
 /*
 *
@@ -83,17 +89,16 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	worldWidth := int32(1920)
-	worldHeight := int32(1080)
-	minWidth := int32(200)
-	minHeight := int32(200)
-
 	random := rand.New(rand.NewSource(time.Now().Unix()))
-	player := NewPlayer(conn, "", Position{
-		X: float32(random.Int31n(worldWidth-2*minWidth) + minWidth),
-		Y: float32(random.Int31n(worldHeight-2*minHeight) + minHeight),
+	player := NewPlayer(conn, "", &Position{
+		X: float64(random.Int31n(worldWidth-2*minWidth) + minWidth),
+		Y: float64(random.Int31n(worldHeight-2*minHeight) + minHeight),
 	}, 0)
+
 	game.addPlayer(player)
+
+	bot := NewPlayer(nil, "BOT", &Position{X: 250, Y: 250}, 0)
+	game.addPlayer(bot)
 
 	go func(ctx context.Context) {
 		ticker := time.NewTicker(time.Millisecond * 16)
@@ -102,14 +107,21 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case <-ticker.C:
-				dt := float32(time.Since(prevUpdate).Milliseconds()) / 1000
+				dt := float64(time.Since(prevUpdate).Milliseconds()) / 1000
 				prevUpdate = time.Now()
 
 				player.update(dt)
 
 				for _, bullet := range game.Bullets {
+
+					if bullet.Position.X > float64(worldWidth) || bullet.Position.X < 0 || bullet.Position.Y > float64(worldHeight) || bullet.Position.Y < 0 {
+						game.deleteBullet(bullet)
+					}
+
 					bullet.update(dt)
 				}
+
+				game.checkCollisions(player)
 
 				log.Println("write state in gourutine")
 				game.writeState(player)
@@ -158,12 +170,18 @@ func (g *Game) writeState(player *Player) {
 			state.OtherPlayers = append(state.OtherPlayers, p)
 		}
 	}
-	state.Bullets = g.Bullets
+	state.Bullets = make([]*Bullet, 0)
+	for _, b := range game.Bullets {
+		state.Bullets = append(state.Bullets, b)
+	}
+
 	log.Println("players ", len(game.Players))
 
-	err := player.Conn.WriteJSON(state)
-	if err != nil {
-		log.Println(err)
+	if player.Conn != nil {
+		err := player.Conn.WriteJSON(state)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -207,6 +225,27 @@ func (g *Game) handleMessages(event Event, player *Player) {
 	// g.writeState(player)
 }
 
+func (g *Game) checkCollisions(player *Player) {
+	// check players collision
+	for _, p := range game.Players {
+		if p.ID != player.ID {
+			if g.checkPlayerWithPlayerCollision(player, p) {
+				// player.canMove = false
+				player.Position.X += math.Cos(player.Angle+math.Pi) * 4
+				player.Position.Y += math.Sin(player.Angle+math.Pi) * 4
+			}
+		}
+	}
+}
+
+func (g *Game) checkPlayerWithPlayerCollision(p1 *Player, p2 *Player) bool {
+	return (p1.Position.X+p1.Width >= p2.Position.X &&
+		p1.Position.X <= p2.Position.X+p2.Width &&
+		p1.Position.Y+p1.Height >= p2.Position.Y &&
+		p1.Position.Y <= p2.Position.Y+p2.Height)
+
+}
+
 // addPlayer will add new players to Players
 func (g *Game) addPlayer(player *Player) {
 	// Lock so we can manipulate
@@ -227,5 +266,9 @@ func (g *Game) deletePlayer(player *Player) {
 }
 
 func (g *Game) addBullet(bullet *Bullet) {
-	g.Bullets = append(g.Bullets, bullet)
+	g.Bullets[bullet.ID] = bullet
+}
+
+func (g *Game) deleteBullet(bullet *Bullet) {
+	delete(g.Bullets, bullet.ID)
 }

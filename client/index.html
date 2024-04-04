@@ -26,6 +26,13 @@
                 text-align: center;
                 margin-top: 10px;
             }
+
+            .game {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100%;
+            }
         </style>
     </head>
     <body>
@@ -43,7 +50,9 @@
             </div>
         </div>
 
-        <canvas id="game-canvas"></canvas>
+        <div class="game">
+            <canvas id="game-canvas"></canvas>
+        </div>
         <script type="module" src="src/index.js"></script>
     </body>
 </html>

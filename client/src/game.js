@@ -1,11 +1,14 @@
 import Player from "./player";
 import Bullet from "./bullet";
 
+
+
 export default class Game {
     constructor() {
         this.canvas = document.getElementById("game-canvas");
-        this.canvas.width = 1920;
-        this.canvas.height = 1080;
+        this.canvas.width = 1366;
+        this.canvas.height = 768;
+        console.log(this.canvas.width, this.canvas.height);
         this.ctx = this.canvas.getContext("2d");
 
         this.firstServerTimestamp = 0;
