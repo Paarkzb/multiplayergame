@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -65,6 +66,8 @@ type Game struct {
 	Bullets Bullets
 	// Using a syncMutex here to be able to lock state before editing players
 	sync.RWMutex
+
+	sync.WaitGroup
 }
 
 // NewGame is used to initalize all the values inside the Game
@@ -83,8 +86,6 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	wg := new(sync.WaitGroup)
 
 	// Begin by upgrading the HTTP request
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
@@ -118,12 +119,12 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 				player.update(dt)
 
 				for _, bullet := range game.Bullets {
+					bullet.update(dt)
 
 					if bullet.Position.X > float64(worldWidth) || bullet.Position.X < 0 || bullet.Position.Y > float64(worldHeight) || bullet.Position.Y < 0 {
 						game.deleteBullet(bullet)
 					}
 
-					bullet.update(dt)
 				}
 
 				game.checkCollisions(player)
@@ -157,7 +158,7 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game.deletePlayer(player)
-	wg.Wait()
+	game.WaitGroup.Wait()
 }
 
 func (g *Game) writeState(player *Player) {
@@ -248,8 +249,9 @@ func (g *Game) handleMessages(event Event, player *Player) {
 }
 
 func (g *Game) checkCollisions(player *Player) {
-	// check players collision
-	for _, p := range game.Players {
+
+	// check player with player collision
+	for _, p := range g.Players {
 		if p.ID != player.ID {
 			if g.checkPlayerWithPlayerCollision(player, p) {
 				// player.canMove = false
@@ -260,14 +262,46 @@ func (g *Game) checkCollisions(player *Player) {
 			}
 		}
 	}
+
+	// check bullet with player collision
+	for _, b := range g.Bullets {
+		for _, p := range g.Players {
+			if g.checkBulletWithPlayerCollision(b, p) {
+				g.deleteBullet(b)
+				p.setDead()
+			}
+		}
+	}
 }
 
 func (g *Game) checkPlayerWithPlayerCollision(p1 *Player, p2 *Player) bool {
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
+
 	return (p1.Position.X+p1.Width >= p2.Position.X &&
 		p1.Position.X <= p2.Position.X+p2.Width &&
 		p1.Position.Y+p1.Height >= p2.Position.Y &&
 		p1.Position.Y <= p2.Position.Y+p2.Height)
 
+}
+
+func clamp(val float64, lo float64, hi float64) float64 {
+	return math.Max(lo, math.Min(val, hi))
+}
+
+func (g *Game) checkBulletWithPlayerCollision(b *Bullet, p *Player) bool {
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
+
+	closestX := clamp(b.Position.X, p.Position.X, p.Position.X+p.Width)
+	closestY := clamp(b.Position.Y, p.Position.Y, p.Position.Y+p.Height)
+
+	distanceX := b.Position.X - closestX
+	distanceY := b.Position.Y - closestY
+
+	distanceSquared := (distanceX * distanceX) + (distanceY * distanceY)
+
+	return distanceSquared < (b.Radius * b.Radius)
 }
 
 // addPlayer will add new players to Players
@@ -276,8 +310,6 @@ func (g *Game) addPlayer(player *Player) {
 	g.RWMutex.Lock()
 	defer g.RWMutex.Unlock()
 
-	// Add Player
-	// TODO: Change to normal unique id
 	g.Players[player.ID] = player
 }
 
@@ -290,9 +322,15 @@ func (g *Game) deletePlayer(player *Player) {
 }
 
 func (g *Game) addBullet(bullet *Bullet) {
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
+
 	g.Bullets[bullet.ID] = bullet
 }
 
 func (g *Game) deleteBullet(bullet *Bullet) {
+	g.RWMutex.Lock()
+	defer g.RWMutex.Unlock()
+
 	delete(g.Bullets, bullet.ID)
 }

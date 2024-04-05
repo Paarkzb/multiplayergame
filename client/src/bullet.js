@@ -1,10 +1,10 @@
 export default class Bullet {
 
-    constructor(position, angle, bulletType, ctx) {
+    constructor(position, angle, bulletType, radius, ctx) {
         this.position = position;
         this.angle = angle;
         this.bulletType = bulletType
-        this.radius = 10;
+        this.radius = radius;
         
         this.ctx = ctx;
     }

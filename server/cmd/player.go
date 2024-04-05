@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math"
 
 	"github.com/google/uuid"
@@ -68,7 +67,7 @@ func NewPlayer(conn *websocket.Conn, name string, pos *Position, angle float64) 
 
 func (p *Player) update(dt float64) {
 	p.Cooldown += dt
-	log.Println(p.Alive)
+	// log.Println(p.Alive)
 
 	if p.Alive {
 		p.PreviousPosition = &Position{X: p.Position.X, Y: p.Position.Y}
@@ -88,7 +87,7 @@ func (p *Player) update(dt float64) {
 		}
 	}
 	if p.Kyes.Space {
-		if p.Cooldown > 1 {
+		if p.Cooldown > 0.5 {
 			p.shoot()
 			p.Cooldown = 0
 		}
@@ -112,4 +111,11 @@ func (p *Player) shoot() {
 		nx,
 		ny,
 	}, p.Angle, "common"))
+}
+
+func (p *Player) setDead() {
+	game.RWMutex.Lock()
+	defer game.RWMutex.Unlock()
+
+	p.Alive = false
 }

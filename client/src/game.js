@@ -45,7 +45,7 @@ export default class Game {
                 oPlayer.draw();
             });
             bullets?.forEach((bullet) => {
-                let oBullet = new Bullet(bullet.position, bullet.angle, bullet.bullet_type, this.ctx);
+                let oBullet = new Bullet(bullet.position, bullet.angle, bullet.bullet_type, bullet.radius, this.ctx);
                 oBullet.draw();
             });
 
