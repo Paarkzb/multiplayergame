@@ -38,7 +38,7 @@ export default class Game {
         //     alert("отчушпанен");
         // }
 
-        if(player?.alive) {
+        if(player) {
             console.log("UPDATE", player);
             console.log("Others", otherPlayers);
 

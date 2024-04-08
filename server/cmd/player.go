@@ -44,7 +44,7 @@ type Player struct {
 	RotateSpeed      float64         `json:"-"`
 	Cooldown         float64         `json:"-"`
 	Kyes             *Keys           `json:"-"`
-	Alive            bool            `json:"alive"`
+	Alive            bool            `json:"-"`
 }
 
 func NewPlayer(conn *websocket.Conn, name string, pos *Position, angle float64) *Player {
