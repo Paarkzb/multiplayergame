@@ -44,7 +44,7 @@ type Player struct {
 	RotateSpeed      float64         `json:"-"`
 	Cooldown         float64         `json:"-"`
 	Kyes             *Keys           `json:"-"`
-	Alive            bool            `json:"-"`
+	Alive            bool            `json:"alive"`
 }
 
 func NewPlayer(conn *websocket.Conn, name string, pos *Position, angle float64) *Player {
@@ -59,17 +59,16 @@ func NewPlayer(conn *websocket.Conn, name string, pos *Position, angle float64) 
 		Height:           50,
 		Speed:            250,
 		RotateSpeed:      125,
-		Cooldown:         1,
+		Cooldown:         0.25,
 		Kyes:             setKeys(),
 		Alive:            true,
 	}
 }
 
 func (p *Player) update(dt float64) {
-	p.Cooldown += dt
 	// log.Println(p.Alive)
-
 	if p.Alive {
+		p.Cooldown -= dt
 		p.PreviousPosition = &Position{X: p.Position.X, Y: p.Position.Y}
 		if p.Kyes.A {
 			p.Angle -= p.RotateSpeed * math.Pi / 180 * dt
@@ -85,11 +84,11 @@ func (p *Player) update(dt float64) {
 			p.Position.X -= math.Cos(p.Angle) * p.Speed * dt
 			p.Position.Y -= math.Sin(p.Angle) * p.Speed * dt
 		}
-	}
-	if p.Kyes.Space {
-		if p.Cooldown > 0.5 {
-			p.shoot()
-			p.Cooldown = 0
+		if p.Kyes.Space {
+			if p.Cooldown <= 0 {
+				p.shoot()
+				p.Cooldown = 0.25
+			}
 		}
 	}
 
@@ -100,7 +99,7 @@ func (p *Player) update(dt float64) {
 func (p *Player) shoot() {
 	cx := p.Position.X + p.Width/2
 	cy := p.Position.Y + p.Height/2
-	x := p.Position.X + p.Width + 5
+	x := p.Position.X + p.Width + 15
 	y := p.Position.Y + p.Height/2
 	cos := math.Cos(p.Angle)
 	sin := math.Sin(p.Angle)
@@ -114,8 +113,5 @@ func (p *Player) shoot() {
 }
 
 func (p *Player) setDead() {
-	game.RWMutex.Lock()
-	defer game.RWMutex.Unlock()
-
 	p.Alive = false
 }

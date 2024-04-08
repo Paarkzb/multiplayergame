@@ -33,9 +33,13 @@ export default class Game {
 
         
         const {player, otherPlayers, bullets} = this.getCurrentState();
-        console.log("UPDATE", player);
-        if(player) {
-            console.log("Update", player);
+
+        // if(!player?.alive) {
+        //     alert("отчушпанен");
+        // }
+
+        if(player?.alive) {
+            console.log("UPDATE", player);
             console.log("Others", otherPlayers);
 
             let playerObject = new Player(player.id, player.name, player.position, player.angle, this.ctx);
@@ -49,8 +53,7 @@ export default class Game {
                 oBullet.draw();
             });
 
-        }
-
+        } 
         this.animationFrame = requestAnimationFrame(() => this.update());
     }
 

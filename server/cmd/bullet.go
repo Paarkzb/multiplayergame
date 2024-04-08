@@ -20,8 +20,8 @@ func NewBullet(position *Position, angle float64, bulletType string) *Bullet {
 }
 
 func (b *Bullet) update(dt float64) {
-	game.RWMutex.Lock()
-	defer game.RWMutex.Unlock()
+	// game.RWMutex.Lock()
+	// defer game.RWMutex.Unlock()
 
 	rad := b.Angle
 	b.Position.X += math.Cos(rad) * b.Speed * dt
