@@ -27,11 +27,6 @@ function connectWebsocket() {
         game.conn.onopen = function (evt) {
             let username = document.getElementById("username").value;
             sendEvent("login", username);
-            
-            game.start();
-            game.animationFrame = requestAnimationFrame(() => game.update());
-            
-            addListenters();
         };
 
         game.conn.onmessage = function (event) {
@@ -61,11 +56,17 @@ function routeEvent(event) {
     }
     console.log("EVENT FROM SERVER", event);
     switch (event.type) {
-        case "update":
-            game.setCurrentState(event);
+        case "state":
+            game.setCurrentState(event.payload);
             break;
-        case "config":
-            game.setConfig(event)
+        case "start":
+            game.start(event.payload)
+            game.animationFrame = requestAnimationFrame(() => game.update());
+            
+            addListenters();
+            break
+        case "end":
+            alert(event.payload.data);
             break
         default:
             alert("unsupported message type");

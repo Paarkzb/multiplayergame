@@ -24,6 +24,7 @@ func (g *Game) checkCollisions(player *Player) {
 			if g.checkBulletWithPlayerCollision(b, p) {
 				g.deleteBullet(b)
 				p.setDead()
+				g.writeMessage("end", player)
 				// g.deletePlayer(p)
 			}
 

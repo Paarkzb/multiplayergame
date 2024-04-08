@@ -18,9 +18,12 @@ export default class Game {
         this.conn;
     }
 
-    start() {
+    start(settings) {
         let form = document.getElementById("form");
         form.remove();
+
+        this.canvas.width = settings.game_width;
+        this.canvas.height = settings.game_height;
     }
 
     update() {
@@ -143,10 +146,5 @@ export default class Game {
     lerpAngle(startAngle, endAngle, t) {
         const dt = this.repeat(endAngle - startAngle, 2 * Math.PI);
         return this.lerp(startAngle, startAngle + (dt > Math.PI ? dt - 2 * Math.PI : dt), t);
-    }
-
-    setConfig(config) {
-        this.canvas.width = config.game_width;
-        this.canvas.height = config.game_height;
     }
 }

@@ -89,7 +89,7 @@ func serveWS(w http.ResponseWriter, r *http.Request) {
 				game.checkCollisions(player)
 
 				log.Println("write state in gourutine")
-				game.writeState(player)
+				game.writeMessage("state", player)
 			case <-ctx.Done():
 				ticker.Stop()
 				return
@@ -123,7 +123,7 @@ func (g *Game) handleMessages(event Event, player *Player) {
 	switch event.Type {
 	case "login":
 		player.Name = event.Payload
-		g.writeConfig(player)
+		g.writeMessage("start", player)
 
 	case "keydown":
 		direction := event.Payload
